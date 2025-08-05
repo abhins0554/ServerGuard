@@ -10,8 +10,12 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.0+-38b2ac.svg)](https://tailwindcss.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Stars](https://img.shields.io/github/stars/abhins0554/ServerGuard?style=social)](https://github.com/abhins0554/ServerGuard)
-[![Forks](https://img.shields.io/github/forks/abhins0554/ServerGuard?style=social)](https://github.com/abhins0554/ServerGuard)
+[![GitHub last commit](https://img.shields.io/github/last-commit/abhins0554/ServerGuard?style=flat-square)](https://github.com/abhins0554/ServerGuard)
+[![GitHub repo size](https://img.shields.io/github/repo-size/abhins0554/ServerGuard?style=flat-square)](https://github.com/abhins0554/ServerGuard)
+[![GitHub stars](https://img.shields.io/github/stars/abhins0554/ServerGuard?style=flat-square)](https://github.com/abhins0554/ServerGuard)
+[![GitHub forks](https://img.shields.io/github/forks/abhins0554/ServerGuard?style=flat-square)](https://github.com/abhins0554/ServerGuard)
+[![GitHub issues](https://img.shields.io/github/issues/abhins0554/ServerGuard?style=flat-square)](https://github.com/abhins0554/ServerGuard/issues)
+[![GitHub license](https://img.shields.io/github/license/abhins0554/ServerGuard?style=flat-square)](https://github.com/abhins0554/ServerGuard/blob/main/LICENSE)
 
 *Real-time system monitoring, file management, and terminal access in one powerful web interface*
 
@@ -521,7 +525,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 **⭐ Star this repository if you find it useful!**
 
-**🔗 [Report Issues](https://github.com/abhins0554/ServerGuard/issues) • [Request Features](https://github.com/abhins0554/ServerGuard/issues/new) • [View on GitHub](https://github.com/abhins0554/ServerGuard)**
+**🔗 [Report Issues](https://github.com/abhins0554/ServerGuard/issues) • [Request Features](https://github.com/abhins0554/ServerGuard/issues/new) • [View on GitHub](https://github.com/abhins0554/ServerGuard) • [Star Repository](https://github.com/abhins0554/ServerGuard)**
 
 ---
 
