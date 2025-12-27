@@ -291,6 +291,37 @@ export const systemAPI = {
   pingTerminal: (sessionId) => {
     const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/terminal/${sessionId}`;
     return wsManager.send(wsUrl, { type: 'ping' });
+  },
+
+  // Screen sharing and remote control
+  getScreenInfo: createCachedApiCall(async () => {
+    const response = await api.get('/api/screen/info');
+    return response.data;
+  }, 'screen_info', 60000), // 1 minute cache for screen info
+
+  updateScreenSettings: async (sessionId, quality, scale, fps) => {
+    const response = await api.post('/api/screen/update-settings', {
+      session_id: sessionId,
+      quality,
+      scale,
+      fps
+    });
+    return response.data;
+  },
+
+  connectScreenWebSocket: (sessionId, onMessage, onError, onClose) => {
+    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/screen/${sessionId}`;
+    return wsManager.connect(wsUrl, onMessage, onError, onClose);
+  },
+
+  connectScreenControlWebSocket: (sessionId, onMessage, onError, onClose) => {
+    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/screen-control/${sessionId}`;
+    return wsManager.connect(wsUrl, onMessage, onError, onClose);
+  },
+
+  sendScreenControlCommand: (sessionId, commandData) => {
+    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/screen-control/${sessionId}`;
+    return wsManager.send(wsUrl, { type: 'control', data: commandData });
   }
 };
 

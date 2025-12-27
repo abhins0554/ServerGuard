@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 ServerGuard - Automated Setup and Startup Script
 ================================================
@@ -21,6 +22,12 @@ import time
 import signal
 import threading
 from pathlib import Path
+
+# Fix Windows encoding issues
+if platform.system() == "Windows":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # Color codes for terminal output
 class Colors:

@@ -10,6 +10,7 @@ import OsDetails from './components/OsDetails';
 import ProcessDetails from './components/ProcessDetails';
 import Terminal from './components/Terminal';
 import FileManager from './components/FileManager';
+import ScreenShare from './components/ScreenShare';
 import Sidebar from './components/Sidebar';
 import './App.css';
 
@@ -54,6 +55,7 @@ function App() {
             <Route path="/processes" element={<ProcessDetails />} />
             <Route path="/terminal" element={<Terminal />} />
             <Route path="/files" element={<FileManager />} />
+            <Route path="/screen" element={<ScreenShare />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

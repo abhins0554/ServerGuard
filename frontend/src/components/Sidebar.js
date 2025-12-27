@@ -11,7 +11,8 @@ import {
   Activity,
   ListChecks,
   Terminal as TerminalIcon,
-  FolderOpen
+  FolderOpen,
+  ScreenShare as ScreenShareIcon
 } from 'lucide-react';
 
 const Sidebar = ({ onLogout }) => {
@@ -27,6 +28,7 @@ const Sidebar = ({ onLogout }) => {
     { path: '/processes', icon: ListChecks, label: 'Processes' },
     { path: '/terminal', icon: TerminalIcon, label: 'Terminal' },
     { path: '/files', icon: FolderOpen, label: 'File Manager' },
+    { path: '/screen', icon: ScreenShareIcon, label: 'Screen Share' },
   ];
 
   return (

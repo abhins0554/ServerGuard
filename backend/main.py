@@ -25,6 +25,17 @@ import logging
 import secrets
 import mimetypes
 from datetime import datetime, timedelta
+import base64
+import io
+from mss import mss
+import pyautogui
+from PIL import Image
+import numpy as np
+
+# Disable pyautogui failsafe for remote control (prevents mouse from moving to corner)
+pyautogui.FAILSAFE = False
+# Set a small pause between actions for better control
+pyautogui.PAUSE = 0.01
 
 # Cross-platform system information functions
 def get_platform_specific_cpu_info():
@@ -1980,6 +1991,324 @@ async def clear_system_cache(token: str = Depends(verify_token)):
         return {"success": True, "message": "Cache cleared successfully"}
     except Exception as e:
         logger.error(f"Error clearing cache: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Screen sharing and remote control functionality
+class ScreenControlRequest(BaseModel):
+    type: str  # 'mouse_move', 'mouse_click', 'mouse_scroll', 'key_press', 'key_type'
+    x: Optional[float] = None
+    y: Optional[float] = None
+    button: Optional[str] = None  # 'left', 'right', 'middle'
+    scroll: Optional[int] = None
+    key: Optional[str] = None
+    text: Optional[str] = None
+
+class ScreenSettingsRequest(BaseModel):
+    session_id: str
+    quality: Optional[int] = 75
+    scale: Optional[float] = 1.0
+    fps: Optional[int] = 10
+
+# Screen capture session management
+screen_sessions = {}
+screen_capture_lock = asyncio.Lock()
+
+def capture_screen(quality=75, scale=1.0):
+    """Capture the screen and return as base64 encoded JPEG"""
+    try:
+        with mss() as sct:
+            # Get primary monitor
+            monitor = sct.monitors[1]  # Monitor 1 is the primary monitor
+            
+            # Capture screenshot
+            screenshot = sct.grab(monitor)
+            
+            # Convert to PIL Image
+            img = Image.frombytes("RGB", screenshot.size, screenshot.bgra, "raw", "BGRX")
+            
+            # Scale if needed
+            if scale != 1.0:
+                new_size = (int(img.width * scale), int(img.height * scale))
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
+            
+            # Convert to JPEG
+            buffer = io.BytesIO()
+            img.save(buffer, format='JPEG', quality=quality, optimize=True)
+            buffer.seek(0)
+            
+            # Encode to base64
+            img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            
+            return img_base64
+    except Exception as e:
+        logger.error(f"Error capturing screen: {e}")
+        raise
+
+def execute_control_command(control_data: dict):
+    """Execute a control command (mouse/keyboard)"""
+    try:
+        cmd_type = control_data.get('type')
+        
+        if cmd_type == 'mouse_move':
+            x = control_data.get('x', 0)
+            y = control_data.get('y', 0)
+            pyautogui.moveTo(x, y, duration=0.01)
+            
+        elif cmd_type == 'mouse_click':
+            x = control_data.get('x', 0)
+            y = control_data.get('y', 0)
+            button = control_data.get('button', 'left')
+            pyautogui.click(x, y, button=button)
+            
+        elif cmd_type == 'mouse_drag':
+            x = control_data.get('x', 0)
+            y = control_data.get('y', 0)
+            pyautogui.dragTo(x, y, duration=0.1, button='left')
+            
+        elif cmd_type == 'mouse_scroll':
+            x = control_data.get('x', 0)
+            y = control_data.get('y', 0)
+            scroll = control_data.get('scroll', 0)
+            pyautogui.scroll(scroll, x=x, y=y)
+            
+        elif cmd_type == 'key_press':
+            key = control_data.get('key')
+            if key:
+                pyautogui.press(key)
+                
+        elif cmd_type == 'key_down':
+            key = control_data.get('key')
+            if key:
+                pyautogui.keyDown(key)
+                
+        elif cmd_type == 'key_up':
+            key = control_data.get('key')
+            if key:
+                pyautogui.keyUp(key)
+                
+        elif cmd_type == 'key_type':
+            text = control_data.get('text', '')
+            if text:
+                pyautogui.write(text, interval=0.01)
+                
+        elif cmd_type == 'key_combination':
+            keys = control_data.get('keys', [])
+            if keys:
+                pyautogui.hotkey(*keys)
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error executing control command: {e}")
+        return False
+
+@app.websocket("/ws/screen/{session_id}")
+async def screen_websocket(websocket: WebSocket, session_id: str):
+    """WebSocket endpoint for screen sharing"""
+    logger.info(f"Screen sharing WebSocket connection attempt for session: {session_id}")
+    await manager.connect(websocket)
+    
+    # Initialize session
+    screen_sessions[session_id] = {
+        "active": True,
+        "quality": 75,
+        "scale": 1.0,
+        "fps": 10
+    }
+    
+    try:
+        # Send initial screen info
+        with mss() as sct:
+            monitor = sct.monitors[1]
+            screen_info = {
+                "type": "screen_info",
+                "width": monitor["width"],
+                "height": monitor["height"]
+            }
+            await websocket.send_text(json.dumps(screen_info))
+        
+        # Start screen capture loop
+        loop = asyncio.get_event_loop()
+        
+        while screen_sessions.get(session_id, {}).get("active", False):
+            try:
+                # Capture screen in executor to avoid blocking
+                session = screen_sessions[session_id]
+                img_base64 = await loop.run_in_executor(
+                    executor,
+                    capture_screen,
+                    session["quality"],
+                    session["scale"]
+                )
+                
+                # Send frame
+                frame_data = {
+                    "type": "frame",
+                    "data": img_base64,
+                    "timestamp": datetime.now().isoformat()
+                }
+                await websocket.send_text(json.dumps(frame_data))
+                
+                # Wait for next frame (use current fps setting)
+                capture_interval = 1.0 / session["fps"]
+                await asyncio.sleep(capture_interval)
+                
+            except WebSocketDisconnect:
+                logger.info(f"Screen sharing WebSocket disconnected for session: {session_id}")
+                break
+            except Exception as e:
+                logger.error(f"Error in screen capture loop for session {session_id}: {e}")
+                error_msg = {
+                    "type": "error",
+                    "message": str(e)
+                }
+                try:
+                    await websocket.send_text(json.dumps(error_msg))
+                except:
+                    pass
+                await asyncio.sleep(1)  # Wait before retrying
+        
+    except WebSocketDisconnect:
+        logger.info(f"Screen sharing WebSocket disconnected for session: {session_id}")
+    except Exception as e:
+        logger.error(f"Screen sharing WebSocket error for session {session_id}: {e}")
+    finally:
+        # Clean up session
+        if session_id in screen_sessions:
+            screen_sessions[session_id]["active"] = False
+            del screen_sessions[session_id]
+        manager.disconnect(websocket)
+        logger.info(f"Cleaned up screen sharing session: {session_id}")
+
+@app.websocket("/ws/screen-control/{session_id}")
+async def screen_control_websocket(websocket: WebSocket, session_id: str):
+    """WebSocket endpoint for remote control (mouse/keyboard)"""
+    logger.info(f"Screen control WebSocket connection attempt for session: {session_id}")
+    await manager.connect(websocket)
+    
+    try:
+        # Send welcome message
+        welcome_msg = {
+            "type": "system",
+            "message": f"Screen control session {session_id} established. Ready for control commands."
+        }
+        await websocket.send_text(json.dumps(welcome_msg))
+        
+        while True:
+            try:
+                # Receive control command
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=300.0)
+                message = json.loads(data)
+                
+                if message.get("type") == "control":
+                    # Execute control command in executor
+                    loop = asyncio.get_event_loop()
+                    success = await loop.run_in_executor(
+                        executor,
+                        execute_control_command,
+                        message.get("data", {})
+                    )
+                    
+                    # Send response
+                    response = {
+                        "type": "control_response",
+                        "success": success,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    await websocket.send_text(json.dumps(response))
+                    
+                elif message.get("type") == "ping":
+                    # Respond to ping
+                    pong_msg = {
+                        "type": "pong",
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    await websocket.send_text(json.dumps(pong_msg))
+                    
+            except asyncio.TimeoutError:
+                # Send heartbeat
+                try:
+                    heartbeat_msg = {
+                        "type": "heartbeat",
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    await websocket.send_text(json.dumps(heartbeat_msg))
+                except:
+                    break
+            except json.JSONDecodeError:
+                error_msg = {
+                    "type": "error",
+                    "message": "Invalid JSON message received"
+                }
+                await websocket.send_text(json.dumps(error_msg))
+            except WebSocketDisconnect:
+                logger.info(f"Screen control WebSocket disconnected for session: {session_id}")
+                break
+            except Exception as e:
+                logger.error(f"Screen control WebSocket error for session {session_id}: {e}")
+                error_msg = {
+                    "type": "error",
+                    "message": str(e)
+                }
+                try:
+                    await websocket.send_text(json.dumps(error_msg))
+                except:
+                    break
+        
+    except WebSocketDisconnect:
+        logger.info(f"Screen control WebSocket disconnected for session: {session_id}")
+    except Exception as e:
+        logger.error(f"Screen control WebSocket error for session {session_id}: {e}")
+    finally:
+        manager.disconnect(websocket)
+
+@app.post("/api/screen/update-settings")
+async def update_screen_settings(
+    request: ScreenSettingsRequest,
+    token: str = Depends(verify_token)
+):
+    """Update screen capture settings"""
+    try:
+        session_id = request.session_id
+        if session_id not in screen_sessions:
+            raise HTTPException(status_code=404, detail="Screen session not found")
+        
+        if request.quality is not None:
+            screen_sessions[session_id]["quality"] = max(10, min(100, request.quality))
+        if request.scale is not None:
+            screen_sessions[session_id]["scale"] = max(0.1, min(2.0, request.scale))
+        if request.fps is not None:
+            screen_sessions[session_id]["fps"] = max(1, min(30, request.fps))
+            # Update capture interval
+            screen_sessions[session_id]["capture_interval"] = 1.0 / screen_sessions[session_id]["fps"]
+        
+        return {
+            "success": True,
+            "settings": screen_sessions[session_id]
+        }
+    except Exception as e:
+        logger.error(f"Error updating screen settings: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/screen/info")
+async def get_screen_info(token: str = Depends(verify_token)):
+    """Get screen information"""
+    try:
+        loop = asyncio.get_event_loop()
+        
+        def get_screen_size():
+            with mss() as sct:
+                monitor = sct.monitors[1]
+                return {
+                    "width": monitor["width"],
+                    "height": monitor["height"],
+                    "left": monitor["left"],
+                    "top": monitor["top"]
+                }
+        
+        screen_info = await loop.run_in_executor(executor, get_screen_size)
+        return screen_info
+    except Exception as e:
+        logger.error(f"Error getting screen info: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
