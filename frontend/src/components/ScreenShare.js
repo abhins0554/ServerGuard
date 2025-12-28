@@ -122,13 +122,14 @@ const ScreenShare = () => {
   // Update scale factor when screen info or container size changes
   useEffect(() => {
     if (screenInfo && screenRef.current && containerRef.current) {
-      const container = containerRef.current;
       const screen = screenRef.current;
-      const containerRect = container.getBoundingClientRect();
+      const screenRect = screen.getBoundingClientRect();
       
+      // Calculate scale factor based on actual displayed image size, not container size
+      // This accounts for object-contain CSS which may scale the image to fit
       scaleFactorRef.current = {
-        x: screenInfo.width / containerRect.width,
-        y: screenInfo.height / containerRect.height
+        x: screenInfo.width / screenRect.width,
+        y: screenInfo.height / screenRect.height
       };
     }
   }, [screenInfo, screenImage]);
@@ -145,9 +146,18 @@ const ScreenShare = () => {
   const handleMouseMove = (e) => {
     if (!screenInfo || !screenRef.current || !mouseControlEnabled) return;
     
-    const rect = screenRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * scaleFactorRef.current.x;
-    const y = (e.clientY - rect.top) * scaleFactorRef.current.y;
+    // Recalculate scale factor in case image size changed
+    const screenRect = screenRef.current.getBoundingClientRect();
+    const scaleX = screenInfo.width / screenRect.width;
+    const scaleY = screenInfo.height / screenRect.height;
+    
+    // Calculate mouse position relative to the displayed image
+    let x = (e.clientX - screenRect.left) * scaleX;
+    let y = (e.clientY - screenRect.top) * scaleY;
+    
+    // Clamp coordinates to valid screen bounds
+    x = Math.max(0, Math.min(screenInfo.width - 1, x));
+    y = Math.max(0, Math.min(screenInfo.height - 1, y));
     
     const now = Date.now();
     const lastMove = lastMouseMoveRef.current;
@@ -195,9 +205,17 @@ const ScreenShare = () => {
     if (!screenInfo || !screenRef.current || !mouseControlEnabled) return;
     
     setIsMouseDown(true);
-    const rect = screenRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * scaleFactorRef.current.x;
-    const y = (e.clientY - rect.top) * scaleFactorRef.current.y;
+    // Recalculate scale factor in case image size changed
+    const screenRect = screenRef.current.getBoundingClientRect();
+    const scaleX = screenInfo.width / screenRect.width;
+    const scaleY = screenInfo.height / screenRect.height;
+    
+    let x = (e.clientX - screenRect.left) * scaleX;
+    let y = (e.clientY - screenRect.top) * scaleY;
+    
+    // Clamp coordinates to valid screen bounds
+    x = Math.max(0, Math.min(screenInfo.width - 1, x));
+    y = Math.max(0, Math.min(screenInfo.height - 1, y));
     
     // Send mouse move first to ensure cursor is at the right position
     sendControlCommand({
@@ -218,9 +236,17 @@ const ScreenShare = () => {
     setIsMouseDown(false);
     if (!screenInfo || !screenRef.current || !mouseControlEnabled) return;
     
-    const rect = screenRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * scaleFactorRef.current.x;
-    const y = (e.clientY - rect.top) * scaleFactorRef.current.y;
+    // Recalculate scale factor in case image size changed
+    const screenRect = screenRef.current.getBoundingClientRect();
+    const scaleX = screenInfo.width / screenRect.width;
+    const scaleY = screenInfo.height / screenRect.height;
+    
+    let x = (e.clientX - screenRect.left) * scaleX;
+    let y = (e.clientY - screenRect.top) * scaleY;
+    
+    // Clamp coordinates to valid screen bounds
+    x = Math.max(0, Math.min(screenInfo.width - 1, x));
+    y = Math.max(0, Math.min(screenInfo.height - 1, y));
     
     sendControlCommand({
       type: 'mouse_click',
@@ -234,9 +260,17 @@ const ScreenShare = () => {
     if (!screenInfo || !screenRef.current) return;
     
     e.preventDefault();
-    const rect = screenRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * scaleFactorRef.current.x;
-    const y = (e.clientY - rect.top) * scaleFactorRef.current.y;
+    // Recalculate scale factor in case image size changed
+    const screenRect = screenRef.current.getBoundingClientRect();
+    const scaleX = screenInfo.width / screenRect.width;
+    const scaleY = screenInfo.height / screenRect.height;
+    
+    let x = (e.clientX - screenRect.left) * scaleX;
+    let y = (e.clientY - screenRect.top) * scaleY;
+    
+    // Clamp coordinates to valid screen bounds
+    x = Math.max(0, Math.min(screenInfo.width - 1, x));
+    y = Math.max(0, Math.min(screenInfo.height - 1, y));
     
     sendControlCommand({
       type: 'mouse_scroll',

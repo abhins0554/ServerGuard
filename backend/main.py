@@ -245,11 +245,12 @@ load_dotenv()
 
 app = FastAPI(title="System Info API", version="1.0.0")
 
-# CORS middleware
+# CORS middleware - Allow all origins for local network access
+# This allows the frontend to be accessed from any device on the local network
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for local network access
+    allow_credentials=False,  # Not needed since we use Bearer tokens (not cookies)
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -1219,8 +1220,14 @@ async def terminal_websocket(websocket: WebSocket, session_id: str):
                                 env=env
                             )
                         else:
+                            # Use the user's default shell, or fallback to /bin/sh (POSIX-compliant, available on all Unix systems)
+                            shell = os.environ.get('SHELL', '/bin/sh')
+                            # Validate that the shell exists, fallback to /bin/sh if not
+                            if not os.path.exists(shell):
+                                shell = '/bin/sh'
+                            
                             process = await asyncio.create_subprocess_exec(
-                                'bash', '-c', command,
+                                shell, '-c', command,
                                 stdout=asyncio.subprocess.PIPE,
                                 stderr=asyncio.subprocess.PIPE,
                                 stdin=asyncio.subprocess.PIPE,
@@ -2309,6 +2316,1319 @@ async def get_screen_info(token: str = Depends(verify_token)):
         return screen_info
     except Exception as e:
         logger.error(f"Error getting screen info: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== Network Tools ====================
+
+class PingRequest(BaseModel):
+    host: str
+    count: int = 4
+    timeout: int = 5
+
+class TracerouteRequest(BaseModel):
+    host: str
+    max_hops: int = 30
+
+class PortScanRequest(BaseModel):
+    host: str
+    ports: str  # Comma-separated or range like "80,443,8000-8010"
+    timeout: float = 1.0
+
+@app.post("/api/network/ping")
+async def ping_host(request: PingRequest, token: str = Depends(verify_token)):
+    """Ping a host"""
+    try:
+        loop = asyncio.get_event_loop()
+        
+        def execute_ping():
+            import subprocess
+            system = platform.system()
+            
+            if system == "Windows":
+                cmd = ['ping', '-n', str(request.count), '-w', str(request.timeout * 1000), request.host]
+            else:
+                cmd = ['ping', '-c', str(request.count), '-W', str(request.timeout), request.host]
+            
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                return {
+                    "success": result.returncode == 0,
+                    "output": result.stdout,
+                    "error": result.stderr if result.stderr else None
+                }
+            except subprocess.TimeoutExpired:
+                return {"success": False, "output": "", "error": "Ping command timed out"}
+        
+        result = await loop.run_in_executor(executor, execute_ping)
+        return result
+    except Exception as e:
+        logger.error(f"Error pinging host {request.host}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/network/traceroute")
+async def traceroute_host(request: TracerouteRequest, token: str = Depends(verify_token)):
+    """Trace route to a host"""
+    try:
+        loop = asyncio.get_event_loop()
+        
+        def execute_traceroute():
+            import subprocess
+            system = platform.system()
+            
+            if system == "Windows":
+                cmd = ['tracert', '-h', str(request.max_hops), request.host]
+            else:
+                cmd = ['traceroute', '-m', str(request.max_hops), request.host]
+            
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                return {
+                    "success": result.returncode == 0,
+                    "output": result.stdout,
+                    "error": result.stderr if result.stderr else None
+                }
+            except subprocess.TimeoutExpired:
+                return {"success": False, "output": "", "error": "Traceroute command timed out"}
+            except FileNotFoundError:
+                return {"success": False, "output": "", "error": "Traceroute command not found. Please install it."}
+        
+        result = await loop.run_in_executor(executor, execute_traceroute)
+        return result
+    except Exception as e:
+        logger.error(f"Error tracing route to {request.host}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/network/port-scan")
+async def port_scan(request: PortScanRequest, token: str = Depends(verify_token)):
+    """Scan ports on a host"""
+    try:
+        async def scan_port(host, port):
+            try:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host, port),
+                    timeout=request.timeout
+                )
+                writer.close()
+                await writer.wait_closed()
+                return {"port": port, "status": "open", "error": None}
+            except asyncio.TimeoutError:
+                return {"port": port, "status": "closed", "error": None}
+            except (ConnectionRefusedError, OSError, IOError):
+                # Common connection errors - port is closed or filtered
+                return {"port": port, "status": "closed", "error": None}
+            except Exception as e:
+                # Log unexpected errors but still return closed status
+                logger.debug(f"Error scanning port {port} on {host}: {e}")
+                return {"port": port, "status": "closed", "error": str(e)}
+        
+        def parse_ports(ports_str):
+            """Parse port string like '80,443,8000-8010' into list of ports"""
+            ports = []
+            for part in ports_str.split(','):
+                part = part.strip()
+                if not part:
+                    continue
+                if '-' in part:
+                    try:
+                        start, end = map(int, part.split('-'))
+                        if start < 1 or start > 65535 or end < 1 or end > 65535:
+                            raise ValueError(f"Ports must be between 1 and 65535")
+                        if start > end:
+                            raise ValueError(f"Invalid port range: start ({start}) must be <= end ({end})")
+                        ports.extend(range(start, end + 1))
+                    except ValueError as e:
+                        raise ValueError(f"Invalid port range '{part}': {str(e)}")
+                else:
+                    try:
+                        port_num = int(part)
+                        if port_num < 1 or port_num > 65535:
+                            raise ValueError(f"Port must be between 1 and 65535")
+                        ports.append(port_num)
+                    except ValueError as e:
+                        raise ValueError(f"Invalid port '{part}': {str(e)}")
+            return sorted(set(ports))
+        
+        ports = parse_ports(request.ports)
+        if len(ports) > 2000:
+            raise HTTPException(status_code=400, detail=f"Maximum 2000 ports allowed per scan (requested: {len(ports)})")
+        
+        if len(ports) == 0:
+            raise HTTPException(status_code=400, detail="No valid ports specified")
+        
+        # Scan ports in batches to avoid overwhelming the system
+        batch_size = 50
+        all_results = []
+        
+        for i in range(0, len(ports), batch_size):
+            batch = ports[i:i+batch_size]
+            try:
+                batch_results = await asyncio.gather(
+                    *[scan_port(request.host, port) for port in batch],
+                    return_exceptions=True
+                )
+                # Handle any exceptions that weren't caught
+                for result in batch_results:
+                    if isinstance(result, Exception):
+                        logger.error(f"Unexpected exception in port scan: {result}", exc_info=True)
+                        # Skip this port result
+                        continue
+                    all_results.append(result)
+            except Exception as e:
+                logger.error(f"Error scanning port batch: {e}", exc_info=True)
+                # Continue with next batch
+                continue
+        
+        return {
+            "host": request.host,
+            "total_ports": len(ports),
+            "open_ports": [r["port"] for r in all_results if r and r.get("status") == "open"],
+            "results": all_results
+        }
+    except ValueError as e:
+        logger.error(f"Invalid port specification: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid port specification: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error scanning ports on {request.host}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error scanning ports: {str(e)}")
+
+@app.get("/api/network/devices")
+async def get_network_devices(token: str = Depends(verify_token)):
+    """Discover devices on the local network"""
+    try:
+        loop = asyncio.get_event_loop()
+        
+        async def ping_scan_network(base_ip, start_octet, end_octet, system):
+            """Ping scan a range of IP addresses"""
+            device_ips = []
+            ips_to_scan = [f"{base_ip}.{i}" for i in range(start_octet, end_octet + 1)]
+            
+            async def ping_ip(ip):
+                try:
+                    if system == "Windows":
+                        proc = await asyncio.create_subprocess_exec(
+                            'ping', '-n', '1', '-w', '300', ip,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                    else:
+                        proc = await asyncio.create_subprocess_exec(
+                            'ping', '-c', '1', '-W', '1', ip,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=2)
+                    if proc.returncode == 0:
+                        return ip
+                except (asyncio.TimeoutError, Exception):
+                    pass
+                return None
+            
+            # Scan IPs in batches
+            batch_size = 50
+            for i in range(0, len(ips_to_scan), batch_size):
+                batch = ips_to_scan[i:i+batch_size]
+                results = await asyncio.gather(*[ping_ip(ip) for ip in batch], return_exceptions=True)
+                for result in results:
+                    if result and isinstance(result, str):
+                        device_ips.append(result)
+            
+            return device_ips
+        
+        def get_network_info():
+            """Get network information for scanning"""
+            interfaces = psutil.net_if_addrs()
+            local_ips = []
+            network_info = None
+            
+            for interface_name, addrs in interfaces.items():
+                for addr in addrs:
+                    if addr.family == socket.AF_INET and not addr.address.startswith('127.'):
+                        ip = addr.address
+                        local_ips.append(ip)
+                        
+                        # Calculate network range from IP and netmask
+                        if not network_info:  # Use first valid network
+                            try:
+                                if addr.netmask:
+                                    # Create network object using ipaddress module
+                                    try:
+                                        import ipaddress
+                                        network = ipaddress.IPv4Network(f"{ip}/{addr.netmask}", strict=False)
+                                        hosts = list(network.hosts())
+                                        if hosts:
+                                            start_ip = str(hosts[0])
+                                            end_ip = str(hosts[-1])
+                                            start_parts = start_ip.split('.')
+                                            end_parts = end_ip.split('.')
+                                            
+                                            network_info = {
+                                                "base": f"{start_parts[0]}.{start_parts[1]}.{start_parts[2]}",
+                                                "start_octet": int(start_parts[3]),
+                                                "end_octet": int(end_parts[3])
+                                            }
+                                    except ImportError:
+                                        # Fallback if ipaddress not available
+                                        ip_parts = ip.split('.')
+                                        if len(ip_parts) == 4:
+                                            network_info = {
+                                                "base": f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}",
+                                                "start_octet": 1,
+                                                "end_octet": 254
+                                            }
+                                else:
+                                    # Fallback: assume /24 network
+                                    ip_parts = ip.split('.')
+                                    if len(ip_parts) == 4:
+                                        network_info = {
+                                            "base": f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}",
+                                            "start_octet": 1,
+                                            "end_octet": 254
+                                        }
+                            except Exception as e:
+                                logger.debug(f"Error calculating network range for {ip}: {e}")
+            
+            return local_ips, network_info
+        
+        def discover_devices():
+            import subprocess
+            import re
+            system = platform.system()
+            device_map = {}  # Map IP to device info
+            
+            try:
+                # Get local network interface and IP
+                interfaces = psutil.net_if_addrs()
+                local_ips = []
+                
+                for interface_name, addrs in interfaces.items():
+                    for addr in addrs:
+                        if addr.family == socket.AF_INET and not addr.address.startswith('127.'):
+                            local_ips.append(addr.address)
+                
+                if not local_ips:
+                    return {"devices": [], "error": "No network interface found"}
+                
+                # Use ARP table to get MAC addresses for known devices
+                arp_devices = {}
+                if system == "Windows":
+                    try:
+                        result = subprocess.run(['arp', '-a'], capture_output=True, text=True, timeout=10)
+                        if result.returncode == 0:
+                            for line in result.stdout.split('\n'):
+                                line = line.strip()
+                                if line and not line.startswith('Interface') and not line.startswith('---'):
+                                    parts = line.split()
+                                    if len(parts) >= 2:
+                                        ip = parts[0]
+                                        mac = parts[1] if len(parts) > 1 else None
+                                        if ip and re.match(r'^\d+\.\d+\.\d+\.\d+$', ip):
+                                            arp_devices[ip] = {"mac": mac or "Unknown", "hostname": None}
+                    except FileNotFoundError:
+                        pass
+                else:  # Linux/macOS
+                    try:
+                        result = subprocess.run(['arp', '-a'], capture_output=True, text=True, timeout=10)
+                        if result.returncode == 0:
+                            for line in result.stdout.split('\n'):
+                                line = line.strip()
+                                if line and '(' in line and 'at' in line:
+                                    match = re.search(r'([^\s]+)\s+\(([\d.]+)\)\s+at\s+([a-fA-F0-9:]+)', line)
+                                    if match:
+                                        hostname = match.group(1)
+                                        ip = match.group(2)
+                                        mac = match.group(3)
+                                        arp_devices[ip] = {
+                                            "mac": mac,
+                                            "hostname": hostname if hostname != '?' else None
+                                        }
+                    except FileNotFoundError:
+                        pass
+                
+                # Store ARP devices in device_map
+                for ip, info in arp_devices.items():
+                    if ip not in local_ips:
+                        device_map[ip] = {
+                            "ip": ip,
+                            "mac": info.get("mac", "Unknown"),
+                            "hostname": info.get("hostname"),
+                            "status": "active"
+                        }
+                
+                # Try to get hostnames for devices without them
+                for ip, device in device_map.items():
+                    if not device.get("hostname"):
+                        try:
+                            hostname = socket.gethostbyaddr(ip)[0]
+                            # Filter out invalid hostnames (like "unknown_XX:XX:XX:XX:XX:XX")
+                            if hostname and not hostname.lower().startswith('unknown_'):
+                                device["hostname"] = hostname
+                        except:
+                            pass
+                    
+                    # Add device identifier (better name when hostname is missing)
+                    if not device.get("identifier"):
+                        if not device.get("hostname") and device.get("mac") and device["mac"] != "Unknown":
+                            # Use MAC address as identifier if no hostname
+                            device["identifier"] = f"Device ({device['mac']})"
+                        elif device.get("hostname"):
+                            device["identifier"] = device["hostname"]
+                        else:
+                            device["identifier"] = f"Device ({device['ip']})"
+                
+                # Convert to list
+                devices = list(device_map.values())
+                
+                # Sort by IP address
+                devices.sort(key=lambda x: socket.inet_aton(x["ip"]))
+                
+                return {"devices": devices, "total": len(devices), "error": None}
+            except Exception as e:
+                logger.error(f"Error in discover_devices: {e}", exc_info=True)
+                return {"devices": [], "total": 0, "error": str(e)}
+        
+        # Get network info first
+        local_ips, network_info = await loop.run_in_executor(executor, get_network_info)
+        
+        # First get ARP table devices (baseline)
+        result = await loop.run_in_executor(executor, discover_devices)
+        device_map = {d["ip"]: d for d in result.get("devices", [])}
+        
+        # Always perform a network scan to find all devices (including those not in ARP table)
+        # This ensures we find devices on all interfaces (2.4GHz, 5GHz, wired)
+        if network_info:
+            try:
+                interfaces = psutil.net_if_addrs()
+                local_ips = []
+                for interface_name, addrs in interfaces.items():
+                    for addr in addrs:
+                        if addr.family == socket.AF_INET and not addr.address.startswith('127.'):
+                            local_ips.append(addr.address)
+                
+                if local_ips:
+                    base_ip = network_info["base"]
+                    start_octet = network_info["start_octet"]
+                    end_octet = min(network_info["end_octet"], start_octet + 254)  # Limit to prevent too long scans
+                    system = platform.system()
+                    
+                    # Perform ping scan to discover all active devices on the network
+                    scanned_ips = await ping_scan_network(base_ip, start_octet, end_octet, system)
+                    
+                    # Get ARP table again after scan to get MAC addresses for newly discovered devices
+                    import subprocess
+                    import re
+                    arp_devices = {}
+                    if system == "Windows":
+                        try:
+                            arp_result = subprocess.run(['arp', '-a'], capture_output=True, text=True, timeout=10)
+                            if arp_result.returncode == 0:
+                                for line in arp_result.stdout.split('\n'):
+                                    line = line.strip()
+                                    if line and not line.startswith('Interface') and not line.startswith('---'):
+                                        parts = line.split()
+                                        if len(parts) >= 2:
+                                            ip = parts[0]
+                                            mac = parts[1] if len(parts) > 1 else None
+                                            if ip and re.match(r'^\d+\.\d+\.\d+\.\d+$', ip):
+                                                arp_devices[ip] = {"mac": mac or "Unknown", "hostname": None}
+                        except:
+                            pass
+                    else:
+                        try:
+                            arp_result = subprocess.run(['arp', '-a'], capture_output=True, text=True, timeout=10)
+                            if arp_result.returncode == 0:
+                                for line in arp_result.stdout.split('\n'):
+                                    line = line.strip()
+                                    if line and '(' in line and 'at' in line:
+                                        match = re.search(r'([^\s]+)\s+\(([\d.]+)\)\s+at\s+([a-fA-F0-9:]+)', line)
+                                        if match:
+                                            hostname = match.group(1)
+                                            ip = match.group(2)
+                                            mac = match.group(3)
+                                            # Filter out invalid hostnames (like "unknown_XX:XX:XX:XX:XX:XX")
+                                            if hostname and (hostname == '?' or hostname.lower().startswith('unknown_')):
+                                                hostname = None
+                                            arp_devices[ip] = {
+                                                "mac": mac,
+                                                "hostname": hostname
+                                            }
+                        except:
+                            pass
+                    
+                    # Add all scanned devices (they responded to ping, so they're active)
+                    for ip in scanned_ips:
+                        if ip not in local_ips:
+                            if ip not in device_map:
+                                device_map[ip] = {
+                                    "ip": ip,
+                                    "mac": arp_devices.get(ip, {}).get("mac", "Unknown"),
+                                    "hostname": arp_devices.get(ip, {}).get("hostname"),
+                                    "status": "active"
+                                }
+                            else:
+                                # Update existing device with MAC from ARP if available
+                                if device_map[ip].get("mac") == "Unknown" and arp_devices.get(ip, {}).get("mac"):
+                                    device_map[ip]["mac"] = arp_devices[ip]["mac"]
+                                arp_hostname = arp_devices.get(ip, {}).get("hostname")
+                                if not device_map[ip].get("hostname") and arp_hostname:
+                                    # Filter out invalid hostnames
+                                    if not arp_hostname.lower().startswith('unknown_'):
+                                        device_map[ip]["hostname"] = arp_hostname
+                    
+                    # Try to get hostnames for devices without them
+                    for ip, device in device_map.items():
+                        if not device.get("hostname"):
+                            try:
+                                hostname = socket.gethostbyaddr(ip)[0]
+                                # Filter out invalid hostnames (like "unknown_XX:XX:XX:XX:XX:XX")
+                                if hostname and not hostname.lower().startswith('unknown_'):
+                                    device["hostname"] = hostname
+                            except:
+                                pass
+                        
+                        # Add device identifier (better name when hostname is missing)
+                        if not device.get("hostname") and device.get("mac") and device["mac"] != "Unknown":
+                            # Use MAC address as identifier if no hostname
+                            device["identifier"] = f"Device ({device['mac']})"
+                        elif device.get("hostname"):
+                            device["identifier"] = device["hostname"]
+                        else:
+                            device["identifier"] = f"Device ({device['ip']})"
+                    
+                    devices = [d for d in device_map.values() if d["ip"] not in local_ips]
+                    devices.sort(key=lambda x: socket.inet_aton(x["ip"]))
+                    result = {"devices": devices, "total": len(devices), "error": None}
+            except Exception as e:
+                logger.error(f"Error in network scan: {e}", exc_info=True)
+                # Return ARP table results if scan fails
+                pass
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error getting network devices: {e}", exc_info=True)
+        return {"devices": [], "total": 0, "error": str(e)}
+
+@app.get("/api/network/device/{device_ip}/connections")
+async def get_device_connections(device_ip: str, token: str = Depends(verify_token)):
+    """Get network connections for a specific device IP - shows connections TO and FROM the device"""
+    try:
+        loop = asyncio.get_event_loop()
+        
+        def get_connections():
+            connections = []
+            outbound_ips = set()  # Track unique destination IPs
+            try:
+                # Get all network connections
+                try:
+                    net_conns = psutil.net_connections(kind='inet')
+                except (PermissionError, psutil.AccessDenied):
+                    try:
+                        net_conns = psutil.net_connections()
+                    except (PermissionError, psutil.AccessDenied):
+                        return {
+                            "connections": [], 
+                            "total": 0, 
+                            "error": "Permission denied: Network connections require elevated privileges",
+                            "outbound_ips": []
+                        }
+                
+                # Filter connections for the specific device IP
+                for conn in net_conns:
+                    try:
+                        remote_addr = None
+                        local_addr = None
+                        remote_ip = None
+                        
+                        # Check if device IP is the remote (incoming connections TO device)
+                        if conn.raddr:
+                            try:
+                                remote_ip = conn.raddr.ip
+                                remote_port = conn.raddr.port
+                                remote_addr = f"{remote_ip}:{remote_port}"
+                                if remote_ip == device_ip:
+                                    if conn.laddr:
+                                        try:
+                                            local_addr = f"{conn.laddr.ip}:{conn.laddr.port}"
+                                        except (AttributeError, TypeError):
+                                            pass
+                                    
+                                    connections.append({
+                                        "local_address": local_addr,
+                                        "remote_address": remote_addr,
+                                        "remote_ip": remote_ip,
+                                        "remote_port": remote_port,
+                                        "status": str(conn.status) if conn.status else None,
+                                        "type": str(conn.type) if conn.type else None,
+                                        "pid": conn.pid,
+                                        "family": str(conn.family) if conn.family else None,
+                                        "direction": "inbound"
+                                    })
+                            except (AttributeError, TypeError):
+                                pass
+                        
+                        # Check if device IP is local (outbound connections FROM device)
+                        if conn.laddr:
+                            try:
+                                local_ip = conn.laddr.ip
+                                if local_ip == device_ip and conn.raddr:
+                                    try:
+                                        remote_ip = conn.raddr.ip
+                                        remote_port = conn.raddr.port
+                                        remote_addr = f"{remote_ip}:{remote_port}"
+                                        local_addr = f"{local_ip}:{conn.laddr.port}"
+                                        
+                                        # Track outbound destination IPs
+                                        if remote_ip and remote_ip != device_ip:
+                                            outbound_ips.add(remote_ip)
+                                        
+                                        connections.append({
+                                            "local_address": local_addr,
+                                            "remote_address": remote_addr,
+                                            "remote_ip": remote_ip,
+                                            "remote_port": remote_port,
+                                            "status": str(conn.status) if conn.status else None,
+                                            "type": str(conn.type) if conn.type else None,
+                                            "pid": conn.pid,
+                                            "family": str(conn.family) if conn.family else None,
+                                            "direction": "outbound"
+                                        })
+                                    except (AttributeError, TypeError):
+                                        pass
+                            except (AttributeError, TypeError):
+                                pass
+                    except (psutil.AccessDenied, psutil.NoSuchProcess, AttributeError, TypeError):
+                        continue
+                
+                # Try to resolve hostnames for outbound IPs
+                outbound_info = []
+                for ip in sorted(outbound_ips):
+                    hostname = None
+                    try:
+                        hostname = socket.gethostbyaddr(ip)[0]
+                    except:
+                        pass
+                    outbound_info.append({
+                        "ip": ip,
+                        "hostname": hostname
+                    })
+                
+                return {
+                    "connections": connections, 
+                    "total": len(connections), 
+                    "error": None,
+                    "outbound_ips": outbound_info,
+                    "outbound_count": len(outbound_ips)
+                }
+            except Exception as e:
+                logger.error(f"Error in get_device_connections: {e}", exc_info=True)
+                return {
+                    "connections": [], 
+                    "total": 0, 
+                    "error": str(e),
+                    "outbound_ips": [],
+                    "outbound_count": 0
+                }
+        
+        result = await loop.run_in_executor(executor, get_connections)
+        return result
+    except Exception as e:
+        logger.error(f"Error getting device connections for {device_ip}: {e}", exc_info=True)
+        return {
+            "connections": [], 
+            "total": 0, 
+            "error": str(e),
+            "outbound_ips": [],
+            "outbound_count": 0
+        }
+
+@app.post("/api/network/device/{device_ip}/port-scan")
+async def scan_device_ports(device_ip: str, ports: str = "1-65535", timeout: float = 0.5, token: str = Depends(verify_token)):
+    """Scan all ports on a specific device - optimized for full port scans"""
+    try:
+        async def scan_port(host, port):
+            try:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host, port),
+                    timeout=timeout
+                )
+                writer.close()
+                await writer.wait_closed()
+                return {"port": port, "status": "open", "error": None}
+            except asyncio.TimeoutError:
+                return {"port": port, "status": "closed", "error": None}
+            except (ConnectionRefusedError, OSError, IOError):
+                return {"port": port, "status": "closed", "error": None}
+            except Exception as e:
+                logger.debug(f"Error scanning port {port} on {host}: {e}")
+                return {"port": port, "status": "closed", "error": str(e)}
+        
+        def parse_ports(ports_str):
+            """Parse port string like '80,443,8000-8010' or '1-65535' into list of ports"""
+            ports = []
+            for part in ports_str.split(','):
+                part = part.strip()
+                if not part:
+                    continue
+                if '-' in part:
+                    try:
+                        start, end = map(int, part.split('-'))
+                        if start < 1 or start > 65535 or end < 1 or end > 65535:
+                            raise ValueError(f"Ports must be between 1 and 65535")
+                        if start > end:
+                            raise ValueError(f"Invalid port range: start ({start}) must be <= end ({end})")
+                        ports.extend(range(start, end + 1))
+                    except ValueError as e:
+                        raise ValueError(f"Invalid port range '{part}': {str(e)}")
+                else:
+                    try:
+                        port_num = int(part)
+                        if port_num < 1 or port_num > 65535:
+                            raise ValueError(f"Port must be between 1 and 65535")
+                        ports.append(port_num)
+                    except ValueError as e:
+                        raise ValueError(f"Invalid port '{part}': {str(e)}")
+            return sorted(set(ports))
+        
+        ports_list = parse_ports(ports)
+        if len(ports_list) > 10000:
+            raise HTTPException(status_code=400, detail=f"Maximum 10000 ports allowed per scan (requested: {len(ports_list)})")
+        
+        if len(ports_list) == 0:
+            raise HTTPException(status_code=400, detail="No valid ports specified")
+        
+        # Scan ports in batches to avoid overwhelming the system
+        batch_size = 100  # Larger batch for full scans
+        all_results = []
+        open_ports = []
+        
+        for i in range(0, len(ports_list), batch_size):
+            batch = ports_list[i:i+batch_size]
+            try:
+                batch_results = await asyncio.gather(
+                    *[scan_port(device_ip, port) for port in batch],
+                    return_exceptions=True
+                )
+                for result in batch_results:
+                    if isinstance(result, Exception):
+                        logger.error(f"Unexpected exception in port scan: {result}", exc_info=True)
+                        continue
+                    if result and result.get("status") == "open":
+                        open_ports.append(result["port"])
+                    all_results.append(result)
+            except Exception as e:
+                logger.error(f"Error scanning port batch: {e}", exc_info=True)
+                continue
+        
+        return {
+            "host": device_ip,
+            "total_ports": len(ports_list),
+            "scanned_ports": len(all_results),
+            "open_ports": sorted(open_ports),
+            "open_count": len(open_ports),
+            "results": all_results[:1000] if len(all_results) > 1000 else all_results  # Limit results to prevent huge responses
+        }
+    except ValueError as e:
+        logger.error(f"Invalid port specification: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid port specification: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error scanning ports on {device_ip}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error scanning ports: {str(e)}")
+
+@app.get("/api/network/connections")
+async def get_network_connections(token: str = Depends(verify_token)):
+    """Get active network connections"""
+    try:
+        loop = asyncio.get_event_loop()
+        
+        def get_connections():
+            connections = []
+            try:
+                # On macOS, net_connections() requires root or can raise PermissionError
+                # We'll try with kind='inet' first, if that fails, try without kind parameter
+                try:
+                    net_conns = psutil.net_connections(kind='inet')
+                except (PermissionError, psutil.AccessDenied):
+                    # If access denied, try to get connections without filtering by kind
+                    try:
+                        net_conns = psutil.net_connections()
+                    except (PermissionError, psutil.AccessDenied):
+                        # If still denied, return empty list with error message
+                        return {"connections": [], "total": 0, "error": "Permission denied: Network connections require elevated privileges on macOS"}
+                
+                for conn in net_conns:
+                    try:
+                        # Handle None values safely
+                        local_addr = None
+                        if conn.laddr:
+                            try:
+                                local_addr = f"{conn.laddr.ip}:{conn.laddr.port}"
+                            except (AttributeError, TypeError):
+                                pass
+                        
+                        remote_addr = None
+                        if conn.raddr:
+                            try:
+                                remote_addr = f"{conn.raddr.ip}:{conn.raddr.port}"
+                            except (AttributeError, TypeError):
+                                pass
+                        
+                        connections.append({
+                            "fd": conn.fd,
+                            "family": str(conn.family) if conn.family else None,
+                            "type": str(conn.type) if conn.type else None,
+                            "local_address": local_addr,
+                            "remote_address": remote_addr,
+                            "status": str(conn.status) if conn.status else None,
+                            "pid": conn.pid
+                        })
+                    except (psutil.AccessDenied, psutil.NoSuchProcess, AttributeError, TypeError) as e:
+                        # Skip connections we can't access
+                        continue
+                
+                return {"connections": connections, "total": len(connections), "error": None}
+            except Exception as e:
+                logger.error(f"Error in get_connections: {e}", exc_info=True)
+                return {"connections": [], "total": 0, "error": f"Error retrieving connections: {str(e)}"}
+        
+        result = await loop.run_in_executor(executor, get_connections)
+        # If there's an error in the result, return it but don't raise HTTPException
+        # so the frontend can display the error message
+        return result
+    except Exception as e:
+        logger.error(f"Error getting network connections: {e}", exc_info=True)
+        return {"connections": [], "total": 0, "error": f"Error: {str(e)}"}
+
+# ==================== Docker/Container Management ====================
+
+@app.get("/api/docker/containers")
+async def get_docker_containers(all: bool = False, token: str = Depends(verify_token)):
+    """Get Docker containers list"""
+    try:
+        import subprocess
+        loop = asyncio.get_event_loop()
+        
+        def get_containers():
+            try:
+                # First check if Docker daemon is running
+                check_cmd = ['docker', 'info']
+                check_result = subprocess.run(check_cmd, capture_output=True, text=True, timeout=5)
+                if check_result.returncode != 0:
+                    error_msg = check_result.stderr.strip()
+                    if 'Cannot connect to the Docker daemon' in error_msg or 'Is the docker daemon running' in error_msg:
+                        return {"available": False, "error": "Docker daemon is not running. Please start Docker Desktop or the Docker service.", "containers": []}
+                    return {"available": False, "error": error_msg or "Cannot connect to Docker daemon", "containers": []}
+                
+                cmd = ['docker', 'ps', '-a', '--format', 'json'] if all else ['docker', 'ps', '--format', 'json']
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                if result.returncode != 0:
+                    error_msg = result.stderr.strip()
+                    if 'Cannot connect to the Docker daemon' in error_msg or 'Is the docker daemon running' in error_msg:
+                        return {"available": False, "error": "Docker daemon is not running. Please start Docker Desktop or the Docker service.", "containers": []}
+                    return {"available": False, "error": error_msg or "Failed to get containers", "containers": []}
+                
+                containers = []
+                for line in result.stdout.strip().split('\n'):
+                    if line.strip():
+                        try:
+                            container = json.loads(line)
+                            containers.append({
+                                "id": container.get("ID", ""),
+                                "name": container.get("Names", ""),
+                                "image": container.get("Image", ""),
+                                "status": container.get("Status", ""),
+                                "ports": container.get("Ports", ""),
+                                "created": container.get("CreatedAt", "")
+                            })
+                        except json.JSONDecodeError:
+                            continue
+                
+                return {"available": True, "containers": containers}
+            except FileNotFoundError:
+                return {"available": False, "error": "Docker command not found. Please install Docker.", "containers": []}
+            except subprocess.TimeoutExpired:
+                return {"available": False, "error": "Docker command timed out", "containers": []}
+            except Exception as e:
+                logger.error(f"Error in get_containers: {e}", exc_info=True)
+                return {"available": False, "error": str(e), "containers": []}
+        
+        result = await loop.run_in_executor(executor, get_containers)
+        return result
+    except Exception as e:
+        logger.error(f"Error getting Docker containers: {e}", exc_info=True)
+        return {"available": False, "error": str(e), "containers": []}
+
+@app.get("/api/docker/container/{container_id}/logs")
+async def get_docker_logs(container_id: str, tail: int = 100, token: str = Depends(verify_token)):
+    """Get Docker container logs"""
+    try:
+        import subprocess
+        loop = asyncio.get_event_loop()
+        
+        def get_logs():
+            try:
+                cmd = ['docker', 'logs', '--tail', str(tail), container_id]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                if result.returncode != 0:
+                    error_msg = result.stderr.strip()
+                    if 'Cannot connect to the Docker daemon' in error_msg:
+                        return {"success": False, "logs": "", "error": "Docker daemon is not running. Please start Docker Desktop or the Docker service."}
+                    return {"success": False, "logs": "", "error": error_msg or "Failed to get logs"}
+                return {"success": True, "logs": result.stdout, "error": None}
+            except FileNotFoundError:
+                return {"success": False, "logs": "", "error": "Docker command not found. Please install Docker."}
+            except subprocess.TimeoutExpired:
+                return {"success": False, "logs": "", "error": "Docker command timed out"}
+            except Exception as e:
+                logger.error(f"Error in get_logs: {e}", exc_info=True)
+                return {"success": False, "logs": "", "error": str(e)}
+        
+        result = await loop.run_in_executor(executor, get_logs)
+        return result
+    except Exception as e:
+        logger.error(f"Error getting Docker logs for {container_id}: {e}", exc_info=True)
+        return {"success": False, "logs": "", "error": str(e)}
+
+@app.get("/api/docker/container/{container_id}/stats")
+async def get_docker_stats(container_id: str, token: str = Depends(verify_token)):
+    """Get Docker container stats"""
+    try:
+        import subprocess
+        loop = asyncio.get_event_loop()
+        
+        def get_stats():
+            try:
+                cmd = ['docker', 'stats', '--no-stream', '--format', 'json', container_id]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                if result.returncode != 0:
+                    error_msg = result.stderr.strip()
+                    if 'Cannot connect to the Docker daemon' in error_msg:
+                        return {"success": False, "stats": None, "error": "Docker daemon is not running. Please start Docker Desktop or the Docker service."}
+                    return {"success": False, "stats": None, "error": error_msg or "Failed to get stats"}
+                
+                try:
+                    stats = json.loads(result.stdout.strip())
+                    return {"success": True, "stats": stats, "error": None}
+                except json.JSONDecodeError:
+                    return {"success": False, "stats": None, "error": "Failed to parse stats"}
+            except FileNotFoundError:
+                return {"success": False, "stats": None, "error": "Docker command not found. Please install Docker."}
+            except subprocess.TimeoutExpired:
+                return {"success": False, "stats": None, "error": "Docker command timed out"}
+            except Exception as e:
+                logger.error(f"Error in get_stats: {e}", exc_info=True)
+                return {"success": False, "stats": None, "error": str(e)}
+        
+        result = await loop.run_in_executor(executor, get_stats)
+        return result
+    except Exception as e:
+        logger.error(f"Error getting Docker stats for {container_id}: {e}", exc_info=True)
+        return {"success": False, "stats": None, "error": str(e)}
+
+@app.post("/api/docker/container/{container_id}/start")
+async def start_container(container_id: str, token: str = Depends(verify_token)):
+    """Start a Docker container"""
+    try:
+        import subprocess
+        loop = asyncio.get_event_loop()
+        
+        def start_cont():
+            try:
+                cmd = ['docker', 'start', container_id]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                if result.returncode != 0:
+                    error_msg = result.stderr.strip()
+                    if 'Cannot connect to the Docker daemon' in error_msg:
+                        return {"success": False, "error": "Docker daemon is not running. Please start Docker Desktop or the Docker service."}
+                    return {"success": False, "error": error_msg or "Failed to start container"}
+                return {"success": True, "message": f"Container {container_id} started successfully", "error": None}
+            except FileNotFoundError:
+                return {"success": False, "error": "Docker command not found. Please install Docker."}
+            except subprocess.TimeoutExpired:
+                return {"success": False, "error": "Docker command timed out"}
+            except Exception as e:
+                logger.error(f"Error in start_cont: {e}", exc_info=True)
+                return {"success": False, "error": str(e)}
+        
+        result = await loop.run_in_executor(executor, start_cont)
+        return result
+    except Exception as e:
+        logger.error(f"Error starting container {container_id}: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/docker/container/{container_id}/stop")
+async def stop_container(container_id: str, token: str = Depends(verify_token)):
+    """Stop a Docker container"""
+    try:
+        import subprocess
+        loop = asyncio.get_event_loop()
+        
+        def stop_cont():
+            try:
+                cmd = ['docker', 'stop', container_id]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                if result.returncode != 0:
+                    error_msg = result.stderr.strip()
+                    if 'Cannot connect to the Docker daemon' in error_msg:
+                        return {"success": False, "error": "Docker daemon is not running. Please start Docker Desktop or the Docker service."}
+                    return {"success": False, "error": error_msg or "Failed to stop container"}
+                return {"success": True, "message": f"Container {container_id} stopped successfully", "error": None}
+            except FileNotFoundError:
+                return {"success": False, "error": "Docker command not found. Please install Docker."}
+            except subprocess.TimeoutExpired:
+                return {"success": False, "error": "Docker command timed out"}
+            except Exception as e:
+                logger.error(f"Error in stop_cont: {e}", exc_info=True)
+                return {"success": False, "error": str(e)}
+        
+        result = await loop.run_in_executor(executor, stop_cont)
+        return result
+    except Exception as e:
+        logger.error(f"Error stopping container {container_id}: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/docker/container/{container_id}/restart")
+async def restart_container(container_id: str, token: str = Depends(verify_token)):
+    """Restart a Docker container"""
+    try:
+        import subprocess
+        loop = asyncio.get_event_loop()
+        
+        def restart_cont():
+            try:
+                cmd = ['docker', 'restart', container_id]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                if result.returncode != 0:
+                    error_msg = result.stderr.strip()
+                    if 'Cannot connect to the Docker daemon' in error_msg:
+                        return {"success": False, "error": "Docker daemon is not running. Please start Docker Desktop or the Docker service."}
+                    return {"success": False, "error": error_msg or "Failed to restart container"}
+                return {"success": True, "message": f"Container {container_id} restarted successfully", "error": None}
+            except FileNotFoundError:
+                return {"success": False, "error": "Docker command not found. Please install Docker."}
+            except subprocess.TimeoutExpired:
+                return {"success": False, "error": "Docker command timed out"}
+            except Exception as e:
+                logger.error(f"Error in restart_cont: {e}", exc_info=True)
+                return {"success": False, "error": str(e)}
+        
+        result = await loop.run_in_executor(executor, restart_cont)
+        return result
+    except Exception as e:
+        logger.error(f"Error restarting container {container_id}: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/docker/container/{container_id}/remove")
+async def remove_container(container_id: str, force: bool = False, token: str = Depends(verify_token)):
+    """Remove a Docker container"""
+    try:
+        import subprocess
+        loop = asyncio.get_event_loop()
+        
+        def remove_cont():
+            try:
+                cmd = ['docker', 'rm', container_id]
+                if force:
+                    cmd.append('-f')
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                if result.returncode != 0:
+                    error_msg = result.stderr.strip()
+                    if 'Cannot connect to the Docker daemon' in error_msg:
+                        return {"success": False, "error": "Docker daemon is not running. Please start Docker Desktop or the Docker service."}
+                    return {"success": False, "error": error_msg or "Failed to remove container"}
+                return {"success": True, "message": f"Container {container_id} removed successfully", "error": None}
+            except FileNotFoundError:
+                return {"success": False, "error": "Docker command not found. Please install Docker."}
+            except subprocess.TimeoutExpired:
+                return {"success": False, "error": "Docker command timed out"}
+            except Exception as e:
+                logger.error(f"Error in remove_cont: {e}", exc_info=True)
+                return {"success": False, "error": str(e)}
+        
+        result = await loop.run_in_executor(executor, remove_cont)
+        return result
+    except Exception as e:
+        logger.error(f"Error removing container {container_id}: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/docker/images")
+async def get_docker_images(token: str = Depends(verify_token)):
+    """Get Docker images list"""
+    try:
+        import subprocess
+        loop = asyncio.get_event_loop()
+        
+        def get_images():
+            try:
+                # First check if Docker daemon is running
+                check_cmd = ['docker', 'info']
+                check_result = subprocess.run(check_cmd, capture_output=True, text=True, timeout=5)
+                if check_result.returncode != 0:
+                    error_msg = check_result.stderr.strip()
+                    if 'Cannot connect to the Docker daemon' in error_msg or 'Is the docker daemon running' in error_msg:
+                        return {"available": False, "error": "Docker daemon is not running. Please start Docker Desktop or the Docker service.", "images": []}
+                    return {"available": False, "error": error_msg or "Cannot connect to Docker daemon", "images": []}
+                
+                cmd = ['docker', 'images', '--format', 'json']
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                if result.returncode != 0:
+                    error_msg = result.stderr.strip()
+                    if 'Cannot connect to the Docker daemon' in error_msg or 'Is the docker daemon running' in error_msg:
+                        return {"available": False, "error": "Docker daemon is not running. Please start Docker Desktop or the Docker service.", "images": []}
+                    return {"available": False, "error": error_msg or "Failed to get images", "images": []}
+                
+                images = []
+                for line in result.stdout.strip().split('\n'):
+                    if line.strip():
+                        try:
+                            image = json.loads(line)
+                            images.append({
+                                "repository": image.get("Repository", ""),
+                                "tag": image.get("Tag", ""),
+                                "image_id": image.get("ID", ""),
+                                "created": image.get("CreatedAt", ""),
+                                "size": image.get("Size", "")
+                            })
+                        except json.JSONDecodeError:
+                            continue
+                
+                return {"available": True, "images": images}
+            except FileNotFoundError:
+                return {"available": False, "error": "Docker command not found. Please install Docker.", "images": []}
+            except subprocess.TimeoutExpired:
+                return {"available": False, "error": "Docker command timed out", "images": []}
+            except Exception as e:
+                logger.error(f"Error in get_images: {e}", exc_info=True)
+                return {"available": False, "error": str(e), "images": []}
+        
+        result = await loop.run_in_executor(executor, get_images)
+        return result
+    except Exception as e:
+        logger.error(f"Error getting Docker images: {e}", exc_info=True)
+        return {"available": False, "error": str(e), "images": []}
+
+# ==================== System Updates & Package Management ====================
+
+@app.get("/api/system/updates")
+async def check_system_updates(token: str = Depends(verify_token)):
+    """Check for system updates"""
+    try:
+        loop = asyncio.get_event_loop()
+        
+        def check_updates():
+            system = platform.system()
+            try:
+                if system == "Linux":
+                    # Try different package managers
+                    import subprocess
+                    
+                    # Check for apt (Debian/Ubuntu)
+                    try:
+                        result = subprocess.run(['apt', 'list', '--upgradable'], capture_output=True, text=True, timeout=10)
+                        if result.returncode == 0:
+                            lines = result.stdout.strip().split('\n')[1:]  # Skip header
+                            updates = [line.split('/')[0] for line in lines if line.strip()]
+                            return {"available": True, "package_manager": "apt", "count": len(updates), "packages": updates[:50]}
+                    except FileNotFoundError:
+                        pass
+                    
+                    # Check for yum/dnf (RHEL/CentOS/Fedora)
+                    try:
+                        result = subprocess.run(['dnf', 'check-update'], capture_output=True, text=True, timeout=10)
+                        if result.returncode == 0 or result.returncode == 100:  # 100 means updates available
+                            lines = [line for line in result.stdout.strip().split('\n') if line and not line.startswith('Last')]
+                            return {"available": True, "package_manager": "dnf", "count": len(lines), "packages": lines[:50]}
+                    except FileNotFoundError:
+                        pass
+                    
+                    return {"available": False, "error": "No supported package manager found"}
+                
+                elif system == "Darwin":  # macOS
+                    import subprocess
+                    try:
+                        result = subprocess.run(['softwareupdate', '-l'], capture_output=True, text=True, timeout=30)
+                        if result.returncode == 0:
+                            lines = [line.strip() for line in result.stdout.split('\n') if line.strip() and ('*' in line or 'Software Update' in line)]
+                            return {"available": True, "package_manager": "softwareupdate", "count": len([l for l in lines if '*' in l]), "packages": lines[:20]}
+                    except FileNotFoundError:
+                        pass
+                    return {"available": False, "error": "softwareupdate not available"}
+                
+                elif system == "Windows":
+                    # Windows Update would require win32com which might not be available
+                    return {"available": False, "error": "Windows Update check not implemented"}
+                
+                return {"available": False, "error": "Unsupported operating system"}
+            except Exception as e:
+                return {"available": False, "error": str(e)}
+        
+        result = await loop.run_in_executor(executor, check_updates)
+        return result
+    except Exception as e:
+        logger.error(f"Error checking system updates: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/packages/list")
+async def list_packages(page: int = 1, limit: int = 50, search: str = "", token: str = Depends(verify_token)):
+    """List installed packages"""
+    try:
+        loop = asyncio.get_event_loop()
+        
+        def get_packages():
+            system = platform.system()
+            packages = []
+            
+            try:
+                if system == "Linux":
+                    import subprocess
+                    
+                    # Try apt (Debian/Ubuntu)
+                    try:
+                        result = subprocess.run(['dpkg-query', '-W', '-f=${Package}\t${Version}\t${Status}\n'], 
+                                              capture_output=True, text=True, timeout=30)
+                        if result.returncode == 0:
+                            for line in result.stdout.strip().split('\n'):
+                                if line.strip():
+                                    parts = line.split('\t')
+                                    if len(parts) >= 2:
+                                        packages.append({
+                                            "name": parts[0],
+                                            "version": parts[1],
+                                            "status": parts[2] if len(parts) > 2 else "installed"
+                                        })
+                        return packages
+                    except FileNotFoundError:
+                        pass
+                    
+                    # Try rpm (RHEL/CentOS/Fedora)
+                    try:
+                        result = subprocess.run(['rpm', '-qa', '--queryformat', '%{NAME}\t%{VERSION}\t%{RELEASE}\n'], 
+                                              capture_output=True, text=True, timeout=30)
+                        if result.returncode == 0:
+                            for line in result.stdout.strip().split('\n'):
+                                if line.strip():
+                                    parts = line.split('\t')
+                                    if len(parts) >= 2:
+                                        packages.append({
+                                            "name": parts[0],
+                                            "version": f"{parts[1]}-{parts[2]}" if len(parts) > 2 else parts[1],
+                                            "status": "installed"
+                                        })
+                        return packages
+                    except FileNotFoundError:
+                        pass
+                
+                elif system == "Darwin":  # macOS
+                    import subprocess
+                    try:
+                        result = subprocess.run(['brew', 'list', '--versions'], capture_output=True, text=True, timeout=30)
+                        if result.returncode == 0:
+                            for line in result.stdout.strip().split('\n'):
+                                if line.strip():
+                                    parts = line.split()
+                                    if len(parts) >= 2:
+                                        packages.append({
+                                            "name": parts[0],
+                                            "version": parts[1],
+                                            "status": "installed"
+                                        })
+                    except FileNotFoundError:
+                        pass
+                
+            except Exception as e:
+                logger.error(f"Error getting packages: {e}")
+            
+            return packages
+        
+        all_packages = await loop.run_in_executor(executor, get_packages)
+        
+        # Filter by search term
+        if search:
+            all_packages = [pkg for pkg in all_packages if search.lower() in pkg["name"].lower()]
+        
+        # Paginate
+        total = len(all_packages)
+        start = (page - 1) * limit
+        end = start + limit
+        paginated_packages = all_packages[start:end]
+        
+        return {
+            "packages": paginated_packages,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "pages": (total + limit - 1) // limit
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error listing packages: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/packages/search")
+async def search_packages(query: str, token: str = Depends(verify_token)):
+    """Search for packages (view only, no install)"""
+    try:
+        loop = asyncio.get_event_loop()
+        
+        def search_pkg():
+            system = platform.system()
+            results = []
+            
+            try:
+                if system == "Linux":
+                    import subprocess
+                    
+                    # Try apt search
+                    try:
+                        result = subprocess.run(['apt-cache', 'search', query], capture_output=True, text=True, timeout=30)
+                        if result.returncode == 0:
+                            for line in result.stdout.strip().split('\n')[:50]:  # Limit to 50 results
+                                if ' - ' in line:
+                                    name, desc = line.split(' - ', 1)
+                                    results.append({"name": name.strip(), "description": desc.strip(), "manager": "apt"})
+                        return results
+                    except FileNotFoundError:
+                        pass
+                    
+                    # Try yum search
+                    try:
+                        result = subprocess.run(['yum', 'search', query], capture_output=True, text=True, timeout=30)
+                        if result.returncode == 0:
+                            current_pkg = None
+                            for line in result.stdout.strip().split('\n'):
+                                if line.strip() and not line.startswith('=') and not line.startswith('N/S'):
+                                    if ':' in line:
+                                        parts = line.split(':', 1)
+                                        current_pkg = parts[0].strip()
+                                        desc = parts[1].strip() if len(parts) > 1 else ""
+                                        results.append({"name": current_pkg, "description": desc, "manager": "yum"})
+                            return results[:50]
+                    except FileNotFoundError:
+                        pass
+                
+                elif system == "Darwin":  # macOS
+                    import subprocess
+                    try:
+                        result = subprocess.run(['brew', 'search', query], capture_output=True, text=True, timeout=30)
+                        if result.returncode == 0:
+                            for name in result.stdout.strip().split('\n')[:50]:
+                                if name.strip():
+                                    results.append({"name": name.strip(), "description": "", "manager": "brew"})
+                    except FileNotFoundError:
+                        pass
+                
+            except Exception as e:
+                logger.error(f"Error searching packages: {e}")
+            
+            return results
+        
+        results = await loop.run_in_executor(executor, search_pkg)
+        return {"query": query, "results": results, "count": len(results)}
+    except Exception as e:
+        logger.error(f"Error searching packages: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

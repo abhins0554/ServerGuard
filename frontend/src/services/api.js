@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8000';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -409,6 +409,110 @@ export const fileAPI = {
 
   getStreamableLinkUrl: (linkId) => {
     return `${API_BASE_URL}/api/files/stream/${linkId}`;
+  },
+};
+
+// Network Tools API
+export const networkToolsAPI = {
+  ping: async (host, count = 4, timeout = 5) => {
+    const response = await api.post('/api/network/ping', { host, count, timeout });
+    return response.data;
+  },
+
+  traceroute: async (host, maxHops = 30) => {
+    const response = await api.post('/api/network/traceroute', { host, max_hops: maxHops });
+    return response.data;
+  },
+
+  portScan: async (host, ports, timeout = 1.0) => {
+    // Use a longer timeout for port scans (5 minutes) as they can take a while
+    const response = await api.post('/api/network/port-scan', { host, ports, timeout }, {
+      timeout: 300000, // 5 minutes timeout for port scans
+    });
+    return response.data;
+  },
+
+  getConnections: async () => {
+    const response = await api.get('/api/network/connections');
+    return response.data;
+  },
+
+  getNetworkDevices: async () => {
+    const response = await api.get('/api/network/devices');
+    return response.data;
+  },
+
+  getDeviceConnections: async (deviceIp) => {
+    const response = await api.get(`/api/network/device/${deviceIp}/connections`);
+    return response.data;
+  },
+
+  scanDevicePorts: async (deviceIp, ports = "1-65535", timeout = 0.5) => {
+    const response = await api.post(`/api/network/device/${deviceIp}/port-scan`, null, {
+      params: { ports, timeout }
+    });
+    return response.data;
+  },
+};
+
+// Docker Management API
+export const dockerAPI = {
+  getContainers: async (all = false) => {
+    const response = await api.get('/api/docker/containers', { params: { all } });
+    return response.data;
+  },
+
+  getContainerLogs: async (containerId, tail = 100) => {
+    const response = await api.get(`/api/docker/container/${containerId}/logs`, { params: { tail } });
+    return response.data;
+  },
+
+  getContainerStats: async (containerId) => {
+    const response = await api.get(`/api/docker/container/${containerId}/stats`);
+    return response.data;
+  },
+
+  getImages: async () => {
+    const response = await api.get('/api/docker/images');
+    return response.data;
+  },
+
+  startContainer: async (containerId) => {
+    const response = await api.post(`/api/docker/container/${containerId}/start`);
+    return response.data;
+  },
+
+  stopContainer: async (containerId) => {
+    const response = await api.post(`/api/docker/container/${containerId}/stop`);
+    return response.data;
+  },
+
+  restartContainer: async (containerId) => {
+    const response = await api.post(`/api/docker/container/${containerId}/restart`);
+    return response.data;
+  },
+
+  removeContainer: async (containerId, force = false) => {
+    const response = await api.post(`/api/docker/container/${containerId}/remove`, null, { params: { force } });
+    return response.data;
+  },
+};
+
+// Package Management API
+export const packageAPI = {
+  checkUpdates: async () => {
+    const response = await api.get('/api/system/updates');
+    return response.data;
+  },
+
+  listPackages: async (page = 1, limit = 50, search = '') => {
+    const response = await api.get('/api/packages/list', { params: { page, limit, search } });
+    return response.data;
+  },
+
+  searchPackages: async (query) => {
+    const response = await api.get('/api/packages/search', { params: { query } });
+    return response.data;
   },
 };
 
