@@ -85,5 +85,7 @@ async def serve_react_app(full_path: str):
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info("Starting ServerGuard API...")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", 8000))
+    logger.info(f"Starting ServerGuard on {host}:{port}...")
+    uvicorn.run(app, host=host, port=port)
