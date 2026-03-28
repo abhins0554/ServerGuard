@@ -30,10 +30,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [INFO] Prerequisites check passed
+echo [INFO] Ready to start ServerGuard
 echo.
 
 REM Run the Python startup script
 python start.py
 
-pause 
+if errorlevel 1 (
+    echo [ERROR] ServerGuard failed to start correctly.
+)
+
+pause

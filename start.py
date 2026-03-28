@@ -160,37 +160,36 @@ def install_node_dependencies():
         print_success("Node.js dependencies installed successfully")
         return True
     except subprocess.CalledProcessError as e:
-        print_error(f"Failed to install Node.js dependencies: {e}")
-        return False
-
 def create_env_file():
     """Create a basic .env file if it doesn't exist"""
     env_path = Path(".env")
+    example_path = Path(".env.example")
     
     if env_path.exists():
         print_status(".env file already exists")
         return True
     
-    print_status("Creating .env file...")
-    
+    if example_path.exists():
+        print_status("Creating .env from .env.example...")
+        try:
+            with open(example_path, 'r') as src, open(env_path, 'w') as dst:
+                dst.write(src.read())
+            print_success(".env file created from example")
+            return True
+        except Exception as e:
+            print_error(f"Failed to copy .env.example: {e}")
+            return False
+
+    print_status("Creating default .env file...")
     env_content = """# ServerGuard Configuration
-# Authentication
-SECRET_KEY=your-secret-key-change-this-in-production
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin123
-
-# Server Configuration
+SECRET_KEY=your-secret-key-change-this-in-production
 HOST=0.0.0.0
 PORT=8000
-
-# Frontend Configuration
-REACT_APP_API_URL=http://localhost:8000
-
-# Development Settings
-DEBUG=true
 LOG_LEVEL=info
+DEBUG=false
 """
-    
     try:
         with open(env_path, 'w') as f:
             f.write(env_content)
@@ -200,9 +199,30 @@ LOG_LEVEL=info
         print_error(f"Failed to create .env file: {e}")
         return False
 
+def build_frontend():
+    """Build the React frontend"""
+    frontend_path = Path("frontend")
+    build_path = frontend_path / "build"
+    
+    if build_path.exists():
+        print_status("Frontend build already exists")
+        choice = input(f"{Colors.WARNING}Do you want to rebuild the frontend? (y/N): {Colors.ENDC}")
+        if choice.lower() != 'y':
+            return True
+            
+    print_status("Building frontend (this may take a minute)...")
+    try:
+        subprocess.run(['npm', 'install'], cwd=frontend_path, check=True)
+        subprocess.run(['npm', 'run', 'build'], cwd=frontend_path, check=True)
+        print_success("Frontend built successfully")
+        return True
+    except subprocess.CalledProcessError as e:
+        print_error(f"Failed to build frontend: {e}")
+        return False
+
 def start_backend_server():
     """Start the FastAPI backend server"""
-    print_status("Starting backend server...")
+    print_status("Starting ServerGuard (Backend + Frontend on port 8000)...")
     
     python_path = get_venv_python()
     backend_path = Path("backend")
@@ -212,136 +232,80 @@ def start_backend_server():
         return None
     
     try:
-        # Start the backend server
+        # Start the backend server as the primary process
+        cmd_python = str(python_path) if python_path.exists() else sys.executable
+        
         process = subprocess.Popen([
-            str(python_path), 'main.py'
+            cmd_python, 'main.py'
         ], cwd=backend_path)
         
-        print_success("Backend server started successfully")
         return process
     except Exception as e:
-        print_error(f"Failed to start backend server: {e}")
+        print_error(f"Failed to start server: {e}")
         return None
-
-def start_frontend_server():
-    """Start the React frontend development server"""
-    print_status("Starting frontend development server...")
-    
-    frontend_path = Path("frontend")
-    
-    if not frontend_path.exists():
-        print_error("Frontend directory not found")
-        return None
-    
-    try:
-        # Start the frontend development server
-        process = subprocess.Popen([
-            'npm', 'start'
-        ], cwd=frontend_path)
-        
-        print_success("Frontend development server started successfully")
-        return process
-    except Exception as e:
-        print_error(f"Failed to start frontend server: {e}")
-        return None
-
-def wait_for_services():
-    """Wait for services to be ready"""
-    print_status("Waiting for services to start...")
-    time.sleep(5)  # Give services time to start
 
 def print_startup_info():
     """Print startup information"""
-    print(f"\n{Colors.HEADER}{Colors.BOLD}🚀 ServerGuard is starting up!{Colors.ENDC}")
+    print(f"\n{Colors.HEADER}{Colors.BOLD}🛡️ ServerGuard is now active!{Colors.ENDC}")
     print(f"{Colors.OKCYAN}═══════════════════════════════════════════════════════════════{Colors.ENDC}")
-    print(f"{Colors.OKGREEN}✅ Backend API:{Colors.ENDC} http://localhost:8000")
+    print(f"{Colors.OKGREEN}✅ Dashboard:{Colors.ENDC} http://localhost:8000")
     print(f"{Colors.OKGREEN}✅ API Documentation:{Colors.ENDC} http://localhost:8000/docs")
-    print(f"{Colors.OKGREEN}✅ Frontend Dashboard:{Colors.ENDC} http://localhost:3000")
-    print(f"{Colors.OKGREEN}✅ Default Login:{Colors.ENDC} admin / admin123")
     print(f"{Colors.OKCYAN}═══════════════════════════════════════════════════════════════{Colors.ENDC}")
-    print(f"{Colors.WARNING}💡 Press Ctrl+C to stop all services{Colors.ENDC}\n")
+    print(f"{Colors.WARNING}💡 Press Ctrl+C to stop the server{Colors.ENDC}\n")
 
 def signal_handler(signum, frame):
     """Handle Ctrl+C to gracefully stop services"""
-    print(f"\n{Colors.WARNING}🛑 Stopping ServerGuard services...{Colors.ENDC}")
+    print(f"\n{Colors.WARNING}🛑 Stopping ServerGuard...{Colors.ENDC}")
     sys.exit(0)
 
 def main():
     """Main function to set up and start ServerGuard"""
-    print(f"{Colors.HEADER}{Colors.BOLD}🛡️ ServerGuard Setup & Startup Script{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}🛡️ ServerGuard Production Startup Script{Colors.ENDC}")
     print(f"{Colors.OKCYAN}═══════════════════════════════════════════════════════════════{Colors.ENDC}\n")
     
     # Set up signal handler for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
     
-    # Check prerequisites
+    # 1. Prerequisites
     if not check_prerequisites():
-        print_error("Prerequisites check failed. Please install required tools.")
         sys.exit(1)
     
-    # Create virtual environment
+    # 2. Virtual Env
     if not create_virtual_environment():
-        print_error("Failed to create virtual environment")
         sys.exit(1)
     
-    # Install Python dependencies
-    if not install_python_dependencies():
-        print_error("Failed to install Python dependencies")
-        sys.exit(1)
-    
-    # Install Node.js dependencies
-    if not install_node_dependencies():
-        print_error("Failed to install Node.js dependencies")
-        sys.exit(1)
-    
-    # Create .env file
+    # 3. Environment Config
     if not create_env_file():
-        print_error("Failed to create .env file")
         sys.exit(1)
+        
+    # 4. Dependencies
+    if not install_python_dependencies():
+        sys.exit(1)
+        
+    # 5. Frontend Build (Required for single-port prod mode)
+    if not (Path("frontend/build").exists()):
+        print_warning("Frontend build not found. Building now...")
+        if not build_frontend():
+            sys.exit(1)
     
-    # Start backend server
+    # 6. Start Server
     backend_process = start_backend_server()
     if not backend_process:
-        print_error("Failed to start backend server")
         sys.exit(1)
     
-    # Start frontend server
-    frontend_process = start_frontend_server()
-    if not frontend_process:
-        print_error("Failed to start frontend server")
-        backend_process.terminate()
-        sys.exit(1)
-    
-    # Wait for services to start
-    wait_for_services()
-    
-    # Print startup information
     print_startup_info()
     
     try:
-        # Keep the script running and monitor processes
         while True:
-            # Check if processes are still running
             if backend_process.poll() is not None:
-                print_error("Backend server stopped unexpectedly")
+                print_error("Server stopped unexpectedly")
                 break
-            
-            if frontend_process.poll() is not None:
-                print_error("Frontend server stopped unexpectedly")
-                break
-            
             time.sleep(1)
-    
     except KeyboardInterrupt:
-        print(f"\n{Colors.WARNING}🛑 Stopping ServerGuard services...{Colors.ENDC}")
-    
+        print(f"\n{Colors.WARNING}🛑 Stopping ServerGuard...{Colors.ENDC}")
     finally:
-        # Clean up processes
         if backend_process:
             backend_process.terminate()
-            print_status("Backend server stopped")
-        
-        if frontend_process:
             frontend_process.terminate()
             print_status("Frontend server stopped")
         

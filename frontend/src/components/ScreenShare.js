@@ -42,7 +42,8 @@ const ScreenShare = () => {
 
     // Connect to screen sharing WebSocket
     const connectScreen = () => {
-      const wsUrl = `${process.env.REACT_APP_API_URL?.replace('http', 'ws') || 'ws://localhost:8000'}/ws/screen/${sessionId}`;
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/screen/${sessionId}`;
       const ws = new WebSocket(wsUrl);
       
       ws.onopen = () => {
@@ -82,7 +83,8 @@ const ScreenShare = () => {
 
     // Connect to control WebSocket
     const connectControl = () => {
-      const wsUrl = `${process.env.REACT_APP_API_URL?.replace('http', 'ws') || 'ws://localhost:8000'}/ws/screen-control/${sessionId}`;
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/screen-control/${sessionId}`;
       const ws = new WebSocket(wsUrl);
       
       ws.onopen = () => {

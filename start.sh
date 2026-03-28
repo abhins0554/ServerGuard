@@ -69,12 +69,18 @@ fi
 npm_version=$(npm --version)
 print_success "npm $npm_version detected"
 
-echo
-print_status "Prerequisites check passed"
-echo
+# Check for macOS specific requirements
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    print_status "Optimizing for macOS..."
+    # Check if command line tools are installed
+    if ! xcode-select -p &> /dev/null; then
+        print_warning "Xcode Command Line Tools not found. You might need them for some dependencies."
+        print_status "Install them with: xcode-select --install"
+    fi
+fi
 
 # Make the Python script executable
 chmod +x start.py
 
 # Run the Python startup script
-python3 start.py 
+python3 start.py

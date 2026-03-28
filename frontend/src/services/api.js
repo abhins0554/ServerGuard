@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -420,7 +420,9 @@ export const networkToolsAPI = {
   },
 
   traceroute: async (host, maxHops = 30) => {
-    const response = await api.post('/api/network/traceroute', { host, max_hops: maxHops });
+    const response = await api.post('/api/network/traceroute', { host, max_hops: maxHops }, {
+      timeout: 0, // No timeout for traceroute
+    });
     return response.data;
   },
 
@@ -438,7 +440,9 @@ export const networkToolsAPI = {
   },
 
   getNetworkDevices: async () => {
-    const response = await api.get('/api/network/devices');
+    const response = await api.get('/api/network/devices', {
+      timeout: 0, // No timeout for network discovery
+    });
     return response.data;
   },
 
