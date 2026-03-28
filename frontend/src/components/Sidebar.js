@@ -29,24 +29,34 @@ const Sidebar = ({ onLogout }) => {
 
   const navItems = [
     { path: '/', icon: Monitor, label: 'Dashboard' },
-    { path: '/cpu', icon: Cpu, label: 'CPU Details' },
-    { path: '/memory', icon: Database, label: 'Memory Details' },
-    { path: '/disk', icon: HardDrive, label: 'Disk Details' },
-    { path: '/network', icon: Network, label: 'Network Details' },
+    { path: '/cpu', icon: Cpu, label: 'CPU' },
+    { path: '/memory', icon: Database, label: 'Memory' },
+    { path: '/disk', icon: HardDrive, label: 'Disk' },
+    { path: '/network', icon: Network, label: 'Network' },
     { path: '/os', icon: Server, label: 'OS Info' },
     { path: '/processes', icon: ListChecks, label: 'Processes' },
     { path: '/terminal', icon: TerminalIcon, label: 'Terminal' },
-    { path: '/files', icon: FolderOpen, label: 'File Manager' },
-    { path: '/screen', icon: ScreenShareIcon, label: 'Screen Share' },
-    { path: '/network-tools', icon: Wifi, label: 'Network Tools' },
+    { path: '/files', icon: FolderOpen, label: 'Files' },
+    { path: '/screen', icon: ScreenShareIcon, label: 'Screen' },
+    { path: '/network-tools', icon: Wifi, label: 'Net Tools' },
     { path: '/docker', icon: Package, label: 'Docker' },
     { path: '/packages', icon: Package, label: 'Packages' },
   ];
 
   const NavContent = () => (
-    <>
+    <div className="flex flex-col h-full">
+      {/* Brand Header */}
+      <div className="flex items-center px-6 h-20 border-b border-white/10 dark:border-gray-800/50">
+        <div className="flex items-center space-x-3 group">
+          <div className="p-2 bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20 group-hover:scale-110 transition-transform duration-300">
+            <Activity className="h-6 w-6 text-white" />
+          </div>
+          <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">ServerGuard</span>
+        </div>
+      </div>
+
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+      <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto scrollbar-hide">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -56,76 +66,69 @@ const Sidebar = ({ onLogout }) => {
               key={item.path}
               to={item.path}
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors duration-200 ${
+              className={`flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 group relative ${
                 isActive
-                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-r-2 border-blue-600 dark:border-blue-400'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400 font-semibold'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              <Icon className="h-5 w-5" />
-              <span className="font-medium">{item.label}</span>
+              {isActive && (
+                <div className="absolute left-0 w-1 h-6 bg-blue-600 rounded-r-full" />
+              )}
+              <Icon className={`h-5 w-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+              <span className="text-sm tracking-wide">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+      {/* Footer Actions */}
+      <div className="p-4 mt-auto border-t border-white/10 dark:border-gray-800/50 space-y-2">
         <button
           onClick={toggleTheme}
-          className="flex items-center space-x-3 w-full px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white rounded-lg transition-colors duration-200"
+          className="flex items-center space-x-3 w-full px-4 py-2.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 hover:text-gray-900 dark:hover:text-white rounded-xl transition-all duration-200 group"
         >
-          {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          <span className="font-medium">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          <div className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-blue-500/10 transition-colors">
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </div>
+          <span className="text-sm font-medium">{theme === 'dark' ? 'Light' : 'Dark'} Mode</span>
         </button>
         <button
           onClick={onLogout}
-          className="flex items-center space-x-3 w-full px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white rounded-lg transition-colors duration-200"
+          className="flex items-center space-x-3 w-full px-4 py-2.5 text-gray-500 dark:text-gray-400 hover:bg-red-500/10 hover:text-red-500 rounded-xl transition-all duration-200 group"
         >
-          <LogOut className="h-5 w-5" />
-          <span className="font-medium">Logout</span>
+          <div className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 group-hover:bg-red-500/20 transition-colors">
+            <LogOut className="h-4 w-4" />
+          </div>
+          <span className="text-sm font-medium">Logout</span>
         </button>
       </div>
-    </>
+    </div>
   );
 
   return (
     <>
-      {/* Mobile Menu Button */}
+      {/* Mobile Toggle */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
+        className="lg:hidden fixed bottom-6 right-6 z-50 p-4 bg-blue-600 text-white rounded-2xl shadow-2xl shadow-blue-600/40 hover:scale-110 active:scale-95 transition-all duration-300"
       >
-        {isMobileMenuOpen ? (
-          <X className="h-6 w-6 text-gray-700 dark:text-gray-300" />
-        ) : (
-          <Menu className="h-6 w-6 text-gray-700 dark:text-gray-300" />
-        )}
+        {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
       </button>
 
-      {/* Sidebar */}
-      <div
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-900 shadow-lg border-r border-gray-200 dark:border-gray-800 transform transition-transform duration-300 ease-in-out ${
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      {/* Sidebar Container */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-64 glass-sidebar transform transition-all duration-500 ease-in-out lg:translate-x-0 ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-2">
-              <Activity className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              <span className="text-xl font-bold text-gray-900 dark:text-white">System Info</span>
-            </div>
-          </div>
-
-          <NavContent />
-        </div>
-      </div>
+        <NavContent />
+      </aside>
 
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-30 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}

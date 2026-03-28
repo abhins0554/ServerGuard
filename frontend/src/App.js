@@ -47,26 +47,31 @@ function App() {
   return (
     <ThemeProvider>
       <Router>
-        <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="flex h-screen bg-background text-foreground overflow-hidden">
           <Sidebar onLogout={handleLogout} />
-          <div className="flex-1 overflow-auto lg:ml-0">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/cpu" element={<CpuDetails />} />
-              <Route path="/memory" element={<MemoryDetails />} />
-              <Route path="/disk" element={<DiskDetails />} />
-              <Route path="/network" element={<NetworkDetails />} />
-              <Route path="/os" element={<OsDetails />} />
-              <Route path="/processes" element={<ProcessDetails />} />
-              <Route path="/terminal" element={<Terminal />} />
-              <Route path="/files" element={<FileManager />} />
-              <Route path="/screen" element={<ScreenShare />} />
-              <Route path="/network-tools" element={<NetworkTools />} />
-              <Route path="/docker" element={<DockerManagement />} />
-              <Route path="/packages" element={<PackageManagement />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </div>
+          <main className="flex-1 relative overflow-y-auto scroll-smooth">
+            {/* Background Accent */}
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
+            
+            <div className="container mx-auto">
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/cpu" element={<CpuDetails />} />
+                <Route path="/memory" element={<MemoryDetails />} />
+                <Route path="/disk" element={<DiskDetails />} />
+                <Route path="/network" element={<NetworkDetails />} />
+                <Route path="/os" element={<OsDetails />} />
+                <Route path="/processes" element={<ProcessDetails />} />
+                <Route path="/terminal" element={<Terminal />} />
+                <Route path="/files" element={<FileManager />} />
+                <Route path="/screen" element={<ScreenShare />} />
+                <Route path="/network-tools" element={<NetworkTools />} />
+                <Route path="/docker" element={<DockerManagement />} />
+                <Route path="/packages" element={<PackageManagement />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </div>
+          </main>
         </div>
       </Router>
     </ThemeProvider>

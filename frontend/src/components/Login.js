@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { authAPI } from '../services/api';
-import { Monitor, Shield, AlertCircle } from 'lucide-react';
+import { Shield, Activity } from 'lucide-react';
 
 const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
@@ -24,87 +24,77 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-primary-600 rounded-full flex items-center justify-center">
-            <Monitor className="h-8 w-8 text-white" />
-          </div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            System Info Dashboard
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Monitor your system resources in real-time
-          </p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-[#020617]">
+      {/* Dynamic Background Elements */}
+      <div className="absolute top-0 -left-20 w-96 h-96 bg-blue-600/20 rounded-full blur-[120px] animate-pulse" />
+      <div className="absolute bottom-0 -right-20 w-96 h-96 bg-indigo-600/10 rounded-full blur-[120px] animate-pulse" />
 
-        <div className="bg-white py-8 px-6 shadow-xl rounded-lg border border-gray-200">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+      <div className="w-full max-w-md relative z-10 fade-in">
+        <div className="glass-card !bg-gray-900/60 !border-white/5 shadow-[0_0_50px_-12px_rgba(59,130,246,0.3)]">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center p-4 bg-blue-600 rounded-2xl shadow-2xl shadow-blue-600/40 mb-6 scale-110">
+              <Activity className="h-10 w-10 text-white" />
+            </div>
+            <h2 className="text-3xl font-black text-white tracking-tight mb-2">Welcome Back</h2>
+            <p className="text-gray-400 font-medium">Access your infrastructure dashboard</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                <div className="flex">
-                  <AlertCircle className="h-5 w-5 text-red-400" />
-                  <div className="ml-3">
-                    <p className="text-sm text-red-800">{error}</p>
-                  </div>
-                </div>
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm font-semibold flex items-center gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                {error}
               </div>
             )}
 
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Username
-              </label>
-              <div className="mt-1">
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="input-field"
-                  placeholder="Enter username"
-                />
-              </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="input-field !bg-white/5 !border-white/10 text-white placeholder:text-gray-600 focus:!border-blue-500"
+                placeholder="Enter administrator ID"
+                required
+              />
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <div className="mt-1">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input-field"
-                  placeholder="Enter password"
-                />
-              </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input-field !bg-white/5 !border-white/10 text-white placeholder:text-gray-600 focus:!border-blue-500"
+                placeholder="••••••••"
+                required
+              />
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full btn-primary flex justify-center items-center"
-              >
-                {loading ? (
-                  <div className="loading-spinner"></div>
-                ) : (
-                  <>
-                    <Shield className="h-5 w-5 mr-2" />
-                    Sign In
-                  </>
-                )}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full btn-primary !h-14 !text-lg !font-black !rounded-2xl transition-all duration-300 disabled:opacity-50"
+            >
+              {loading ? (
+                <div className="flex items-center gap-3">
+                  <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  AUTHENTICATING...
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    INITIALIZE SESSION
+                </div>
+              )}
+            </button>
           </form>
 
+          <div className="mt-8 pt-8 border-t border-white/5 text-center">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-[0.2em]">
+              ServerGuard Protocol v2.4.0
+            </p>
+          </div>
         </div>
       </div>
     </div>
