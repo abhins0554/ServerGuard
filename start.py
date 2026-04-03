@@ -160,6 +160,10 @@ def install_node_dependencies():
         print_success("Node.js dependencies installed successfully")
         return True
     except subprocess.CalledProcessError as e:
+        print_error(f"Failed to install Node.js dependencies: {e}")
+        return False
+
+
 def create_env_file():
     """Create a basic .env file if it doesn't exist"""
     env_path = Path(".env")
