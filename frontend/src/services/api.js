@@ -2,6 +2,31 @@ import axios from 'axios';
 
 const API_BASE_URL = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
 
+/**
+ * Origin for WebSocket URLs (must hit the FastAPI process).
+ * CRA dev serves the UI on :3000 and proxies HTTP to :8000, but WS upgrades through that proxy are unreliable;
+ * when the page is on port 3000, connect directly to the API on :8000 (same as Terminal fallback).
+ */
+function getWebSocketHttpOrigin() {
+  const env = process.env.REACT_APP_API_URL;
+  if (env && String(env).trim()) {
+    return env.replace(/\/$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    const { protocol, hostname, port } = window.location;
+    if (port === '3000') {
+      return `${protocol}//${hostname}:8000`;
+    }
+    return window.location.origin;
+  }
+  return 'http://localhost:8000';
+}
+
+/** e.g. ws://localhost:8000 or wss://host (no path) */
+export function getWebSocketBaseUrl() {
+  return getWebSocketHttpOrigin().replace(/^http/, 'ws');
+}
+
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -268,28 +293,28 @@ export const systemAPI = {
 
   // Real-time system monitoring via WebSocket
   connectSystemWebSocket: (onMessage, onError, onClose) => {
-    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/system`;
+    const wsUrl = `${getWebSocketBaseUrl()}/ws/system`;
     return wsManager.connect(wsUrl, onMessage, onError, onClose);
   },
 
   // Real-time terminal via WebSocket
   connectTerminalWebSocket: (sessionId, onMessage, onError, onClose) => {
-    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/terminal/${sessionId}`;
+    const wsUrl = `${getWebSocketBaseUrl()}/ws/terminal/${sessionId}`;
     return wsManager.connect(wsUrl, onMessage, onError, onClose);
   },
 
   sendTerminalCommand: (sessionId, command) => {
-    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/terminal/${sessionId}`;
+    const wsUrl = `${getWebSocketBaseUrl()}/ws/terminal/${sessionId}`;
     return wsManager.send(wsUrl, { type: 'command', command });
   },
 
   getTerminalDirectory: (sessionId) => {
-    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/terminal/${sessionId}`;
+    const wsUrl = `${getWebSocketBaseUrl()}/ws/terminal/${sessionId}`;
     return wsManager.send(wsUrl, { type: 'get_directory' });
   },
 
   pingTerminal: (sessionId) => {
-    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/terminal/${sessionId}`;
+    const wsUrl = `${getWebSocketBaseUrl()}/ws/terminal/${sessionId}`;
     return wsManager.send(wsUrl, { type: 'ping' });
   },
 
@@ -310,17 +335,17 @@ export const systemAPI = {
   },
 
   connectScreenWebSocket: (sessionId, onMessage, onError, onClose) => {
-    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/screen/${sessionId}`;
+    const wsUrl = `${getWebSocketBaseUrl()}/ws/screen/${sessionId}`;
     return wsManager.connect(wsUrl, onMessage, onError, onClose);
   },
 
   connectScreenControlWebSocket: (sessionId, onMessage, onError, onClose) => {
-    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/screen-control/${sessionId}`;
+    const wsUrl = `${getWebSocketBaseUrl()}/ws/screen-control/${sessionId}`;
     return wsManager.connect(wsUrl, onMessage, onError, onClose);
   },
 
   sendScreenControlCommand: (sessionId, commandData) => {
-    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/screen-control/${sessionId}`;
+    const wsUrl = `${getWebSocketBaseUrl()}/ws/screen-control/${sessionId}`;
     return wsManager.send(wsUrl, { type: 'control', data: commandData });
   }
 };
@@ -328,7 +353,13 @@ export const systemAPI = {
 export const fileAPI = {
   listDirectory: createCachedApiCall(async (path = '.') => {
     const response = await api.get(`/api/files/list?path=${encodeURIComponent(path)}`);
-    return response.data;
+    const data = response.data;
+    if (!data || typeof data !== 'object' || !Array.isArray(data.items)) {
+      throw new Error(
+        'Directory listing returned an invalid response. Is the API running and reachable?'
+      );
+    }
+    return data;
   }, 'files_list', 10000), // 10 second cache for directory listings
 
   getFileContent: createCachedApiCall(async (path) => {

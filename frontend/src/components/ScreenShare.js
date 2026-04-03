@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { systemAPI } from '../services/api';
-import { Monitor, Settings, MousePointer, Keyboard, Maximize2, Minimize2 } from 'lucide-react';
+import { systemAPI, getWebSocketBaseUrl } from '../services/api';
+import {
+  Monitor,
+  Settings,
+  MousePointer,
+  Keyboard,
+  Maximize2,
+  Minimize2,
+  X,
+  Smartphone,
+  ZoomIn
+} from 'lucide-react';
 
 const ScreenShare = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -17,15 +27,25 @@ const ScreenShare = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mouseControlEnabled, setMouseControlEnabled] = useState(true);
-  const [isMouseDown, setIsMouseDown] = useState(false);
-  
+
   const screenRef = useRef(null);
   const containerRef = useRef(null);
+  const touchSurfaceRef = useRef(null);
   const wsRef = useRef(null);
   const controlWsRef = useRef(null);
   const scaleFactorRef = useRef({ x: 1, y: 1 });
   const lastMouseMoveRef = useRef({ x: 0, y: 0, time: 0 });
   const mouseMoveThrottleRef = useRef(null);
+  const screenReconnectRef = useRef(null);
+  const controlReconnectRef = useRef(null);
+  /** Mouse or touch is holding primary button down (for move throttling). */
+  const isPointerDownRef = useRef(false);
+  const screenInfoRef = useRef(null);
+  const activeTouchIdRef = useRef(null);
+  const touchPointerDownRef = useRef(false);
+  const twoFingerMidRef = useRef({ y: null, x: null });
+  /** Two-finger spread/pinch: finger distance + zoom throttle */
+  const twoFingerPinchRef = useRef({ lastSpread: null, lastZoomAt: 0 });
 
   useEffect(() => {
     // Get screen info
@@ -40,21 +60,22 @@ const ScreenShare = () => {
     
     fetchScreenInfo();
 
-    // Connect to screen sharing WebSocket
+    const wsBase = getWebSocketBaseUrl();
+
+    // Connect to screen sharing WebSocket (same backend origin as Terminal — not CRA :3000)
     const connectScreen = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws/screen/${sessionId}`;
+      const wsUrl = `${wsBase}/ws/screen/${sessionId}`;
       const ws = new WebSocket(wsUrl);
-      
+
       ws.onopen = () => {
         setIsConnected(true);
         setError(null);
       };
-      
+
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
+
           if (data.type === 'screen_info') {
             setScreenInfo(data);
           } else if (data.type === 'frame') {
@@ -66,41 +87,38 @@ const ScreenShare = () => {
           console.error('Error parsing screen data:', err);
         }
       };
-      
-      ws.onerror = (err) => {
-        setError('Screen sharing connection error');
+
+      ws.onerror = () => {
+        const httpHint = wsBase.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
+        setError(`Screen sharing connection error — open the API at ${httpHint} or set REACT_APP_API_URL.`);
         setIsConnected(false);
       };
-      
+
       ws.onclose = () => {
         setIsConnected(false);
-        // Attempt to reconnect after 2 seconds
-        setTimeout(connectScreen, 2000);
+        screenReconnectRef.current = setTimeout(connectScreen, 2000);
       };
-      
+
       wsRef.current = ws;
     };
 
-    // Connect to control WebSocket
     const connectControl = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws/screen-control/${sessionId}`;
+      const wsUrl = `${wsBase}/ws/screen-control/${sessionId}`;
       const ws = new WebSocket(wsUrl);
-      
+
       ws.onopen = () => {
         setIsControlConnected(true);
       };
-      
-      ws.onerror = (err) => {
+
+      ws.onerror = () => {
         setIsControlConnected(false);
       };
-      
+
       ws.onclose = () => {
         setIsControlConnected(false);
-        // Attempt to reconnect after 2 seconds
-        setTimeout(connectControl, 2000);
+        controlReconnectRef.current = setTimeout(connectControl, 2000);
       };
-      
+
       controlWsRef.current = ws;
     };
 
@@ -108,18 +126,53 @@ const ScreenShare = () => {
     connectControl();
 
     return () => {
+      if (screenReconnectRef.current) {
+        clearTimeout(screenReconnectRef.current);
+        screenReconnectRef.current = null;
+      }
+      if (controlReconnectRef.current) {
+        clearTimeout(controlReconnectRef.current);
+        controlReconnectRef.current = null;
+      }
       if (wsRef.current) {
         wsRef.current.close();
+        wsRef.current = null;
       }
       if (controlWsRef.current) {
         controlWsRef.current.close();
+        controlWsRef.current = null;
       }
-      // Clean up throttle timer
       if (mouseMoveThrottleRef.current) {
         clearTimeout(mouseMoveThrottleRef.current);
       }
     };
   }, [sessionId]);
+
+  useEffect(() => {
+    screenInfoRef.current = screenInfo;
+  }, [screenInfo]);
+
+  // Non-passive touch listeners so we can preventDefault (stop scroll/zoom while controlling)
+  useEffect(() => {
+    const el = touchSurfaceRef.current;
+    if (!el || !mouseControlEnabled) return undefined;
+    const opts = { passive: false };
+    const block = (e) => {
+      if (screenInfoRef.current && screenRef.current) {
+        e.preventDefault();
+      }
+    };
+    el.addEventListener('touchstart', block, opts);
+    el.addEventListener('touchmove', block, opts);
+    el.addEventListener('touchend', block, opts);
+    el.addEventListener('touchcancel', block, opts);
+    return () => {
+      el.removeEventListener('touchstart', block, opts);
+      el.removeEventListener('touchmove', block, opts);
+      el.removeEventListener('touchend', block, opts);
+      el.removeEventListener('touchcancel', block, opts);
+    };
+  }, [mouseControlEnabled, screenImage]);
 
   // Update scale factor when screen info or container size changes
   useEffect(() => {
@@ -145,68 +198,65 @@ const ScreenShare = () => {
     }
   };
 
-  const handleMouseMove = (e) => {
-    if (!screenInfo || !screenRef.current || !mouseControlEnabled) return;
-    
-    // Recalculate scale factor in case image size changed
-    const screenRect = screenRef.current.getBoundingClientRect();
-    const scaleX = screenInfo.width / screenRect.width;
-    const scaleY = screenInfo.height / screenRect.height;
-    
-    // Calculate mouse position relative to the displayed image
-    let x = (e.clientX - screenRect.left) * scaleX;
-    let y = (e.clientY - screenRect.top) * scaleY;
-    
-    // Clamp coordinates to valid screen bounds
-    x = Math.max(0, Math.min(screenInfo.width - 1, x));
-    y = Math.max(0, Math.min(screenInfo.height - 1, y));
-    
+  /** Map viewport coordinates to remote desktop pixels (respects object-contain image bounds). */
+  const clientToRemote = (clientX, clientY) => {
+    const info = screenInfoRef.current;
+    const img = screenRef.current;
+    if (!info || !img) return null;
+    const screenRect = img.getBoundingClientRect();
+    const scaleX = info.width / screenRect.width;
+    const scaleY = info.height / screenRect.height;
+    let x = (clientX - screenRect.left) * scaleX;
+    let y = (clientY - screenRect.top) * scaleY;
+    x = Math.max(0, Math.min(info.width - 1, x));
+    y = Math.max(0, Math.min(info.height - 1, y));
+    return { x: Math.round(x), y: Math.round(y) };
+  };
+
+  const sendThrottledRemoteMove = (x, y) => {
     const now = Date.now();
     const lastMove = lastMouseMoveRef.current;
-    
-    // Throttle mouse move events - only send every 50ms (20fps max)
-    // Or send immediately if mouse button is down (for dragging)
-    if (isMouseDown || (now - lastMove.time) >= 50) {
-      // Only send if position actually changed significantly (at least 2 pixels)
+    const pointerDown = isPointerDownRef.current;
+
+    if (pointerDown || now - lastMove.time >= 50) {
       const dx = Math.abs(x - lastMove.x);
       const dy = Math.abs(y - lastMove.y);
-      
-      if (isMouseDown || dx > 2 || dy > 2) {
-        // Clear any pending throttle
+
+      if (pointerDown || dx > 2 || dy > 2) {
         if (mouseMoveThrottleRef.current) {
           clearTimeout(mouseMoveThrottleRef.current);
           mouseMoveThrottleRef.current = null;
         }
-        
-        sendControlCommand({
-          type: 'mouse_move',
-          x: Math.round(x),
-          y: Math.round(y)
-        });
-        
+        sendControlCommand({ type: 'mouse_move', x, y });
         lastMouseMoveRef.current = { x, y, time: now };
-      } else {
-        // Throttle: schedule a delayed send if not already scheduled
-        if (!mouseMoveThrottleRef.current) {
-          mouseMoveThrottleRef.current = setTimeout(() => {
-            sendControlCommand({
-              type: 'mouse_move',
-              x: Math.round(x),
-              y: Math.round(y)
-            });
-            lastMouseMoveRef.current = { x, y, time: Date.now() };
-            mouseMoveThrottleRef.current = null;
-          }, 50);
-        }
+      } else if (!mouseMoveThrottleRef.current) {
+        mouseMoveThrottleRef.current = setTimeout(() => {
+          sendControlCommand({ type: 'mouse_move', x, y });
+          lastMouseMoveRef.current = { x, y, time: Date.now() };
+          mouseMoveThrottleRef.current = null;
+        }, 50);
       }
     }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!screenInfo || !screenRef.current || !mouseControlEnabled) return;
+
+    const screenRect = screenRef.current.getBoundingClientRect();
+    const scaleX = screenInfo.width / screenRect.width;
+    const scaleY = screenInfo.height / screenRect.height;
+    let x = (e.clientX - screenRect.left) * scaleX;
+    let y = (e.clientY - screenRect.top) * scaleY;
+    x = Math.max(0, Math.min(screenInfo.width - 1, x));
+    y = Math.max(0, Math.min(screenInfo.height - 1, y));
+    sendThrottledRemoteMove(Math.round(x), Math.round(y));
   };
 
   const handleMouseDown = (e) => {
     e.preventDefault();
     if (!screenInfo || !screenRef.current || !mouseControlEnabled) return;
-    
-    setIsMouseDown(true);
+
+    isPointerDownRef.current = true;
     // Recalculate scale factor in case image size changed
     const screenRect = screenRef.current.getBoundingClientRect();
     const scaleX = screenInfo.width / screenRect.width;
@@ -235,7 +285,7 @@ const ScreenShare = () => {
   };
   
   const handleMouseUp = (e) => {
-    setIsMouseDown(false);
+    isPointerDownRef.current = false;
     if (!screenInfo || !screenRef.current || !mouseControlEnabled) return;
     
     // Recalculate scale factor in case image size changed
@@ -258,28 +308,203 @@ const ScreenShare = () => {
     });
   };
 
+  const endTouchPointerIfNeeded = () => {
+    if (touchPointerDownRef.current) {
+      sendControlCommand({ type: 'mouse_up', button: 'left' });
+      touchPointerDownRef.current = false;
+    }
+    activeTouchIdRef.current = null;
+    isPointerDownRef.current = false;
+  };
+
+  const handleTouchStart = (e) => {
+    if (!mouseControlEnabled || !screenInfoRef.current || !screenRef.current) return;
+
+    if (e.touches.length === 2) {
+      endTouchPointerIfNeeded();
+      const t0 = e.touches[0];
+      const t1 = e.touches[1];
+      twoFingerMidRef.current = {
+        y: (t0.clientY + t1.clientY) / 2,
+        x: (t0.clientX + t1.clientX) / 2
+      };
+      twoFingerPinchRef.current = {
+        lastSpread: Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY),
+        lastZoomAt: twoFingerPinchRef.current.lastZoomAt
+      };
+      return;
+    }
+
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const pos = clientToRemote(t.clientX, t.clientY);
+    if (!pos) return;
+
+    activeTouchIdRef.current = t.identifier;
+    sendControlCommand({ type: 'mouse_move', x: pos.x, y: pos.y });
+    sendControlCommand({ type: 'mouse_down', x: pos.x, y: pos.y, button: 'left' });
+    touchPointerDownRef.current = true;
+    isPointerDownRef.current = true;
+    lastMouseMoveRef.current = { x: pos.x, y: pos.y, time: Date.now() };
+  };
+
+  const handleTouchMove = (e) => {
+    if (!mouseControlEnabled || !screenInfoRef.current || !screenRef.current) return;
+
+    if (e.touches.length === 2) {
+      const t0 = e.touches[0];
+      const t1 = e.touches[1];
+      const midX = (t0.clientX + t1.clientX) / 2;
+      const midY = (t0.clientY + t1.clientY) / 2;
+      const spread = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+      const last = twoFingerMidRef.current;
+      const pinch = twoFingerPinchRef.current;
+
+      let didPinchZoom = false;
+      if (
+        last.x != null &&
+        last.y != null &&
+        pinch.lastSpread != null &&
+        spread > 24
+      ) {
+        const midDx = Math.abs(midX - last.x);
+        const midDy = Math.abs(midY - last.y);
+        const dSpread = spread - pinch.lastSpread;
+        const now = Date.now();
+        if (
+          midDx < 18 &&
+          midDy < 18 &&
+          Math.abs(dSpread) > 12 &&
+          now - pinch.lastZoomAt > 360
+        ) {
+          sendControlCommand({
+            type: 'zoom_gesture',
+            direction: dSpread > 0 ? 'in' : 'out'
+          });
+          pinch.lastZoomAt = now;
+          pinch.lastSpread = spread;
+          didPinchZoom = true;
+        }
+      }
+      if (!didPinchZoom) {
+        pinch.lastSpread = spread;
+      }
+
+      const at = clientToRemote(midX, midY);
+      if (at && !didPinchZoom && last.x != null && last.y != null) {
+        const dx = midX - last.x;
+        const dy = midY - last.y;
+        const vert =
+          Math.abs(dy) >= 2
+            ? -Math.sign(dy) * Math.min(14, Math.max(1, Math.round(Math.abs(dy) / 6)))
+            : 0;
+        const horiz =
+          Math.abs(dx) >= 2
+            ? -Math.sign(dx) * Math.min(14, Math.max(1, Math.round(Math.abs(dx) / 6)))
+            : 0;
+        if (vert !== 0 || horiz !== 0) {
+          sendControlCommand({
+            type: 'mouse_scroll',
+            x: at.x,
+            y: at.y,
+            scroll: vert,
+            scroll_horizontal: horiz
+          });
+        }
+      }
+
+      twoFingerMidRef.current = { y: midY, x: midX };
+      return;
+    }
+
+    if (
+      e.touches.length === 1 &&
+      touchPointerDownRef.current &&
+      e.touches[0].identifier === activeTouchIdRef.current
+    ) {
+      const t = e.touches[0];
+      const pos = clientToRemote(t.clientX, t.clientY);
+      if (pos) sendThrottledRemoteMove(pos.x, pos.y);
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!mouseControlEnabled) return;
+
+    if (e.touches.length < 2) {
+      twoFingerMidRef.current = { y: null, x: null };
+      twoFingerPinchRef.current = { lastSpread: null, lastZoomAt: twoFingerPinchRef.current.lastZoomAt };
+    }
+
+    let releasedPrimary = false;
+    for (let i = 0; i < e.changedTouches.length; i += 1) {
+      const ch = e.changedTouches[i];
+      if (ch.identifier === activeTouchIdRef.current && touchPointerDownRef.current) {
+        endTouchPointerIfNeeded();
+        releasedPrimary = true;
+        break;
+      }
+    }
+
+    if (e.touches.length === 0 && touchPointerDownRef.current) {
+      endTouchPointerIfNeeded();
+      releasedPrimary = true;
+    }
+
+    if (e.touches.length === 0) {
+      activeTouchIdRef.current = null;
+      twoFingerMidRef.current = { y: null, x: null };
+      twoFingerPinchRef.current = { lastSpread: null, lastZoomAt: 0 };
+    }
+
+    if (releasedPrimary) {
+      e.preventDefault();
+    }
+  };
+
   const handleWheel = (e) => {
     if (!screenInfo || !screenRef.current) return;
-    
+
     e.preventDefault();
-    // Recalculate scale factor in case image size changed
     const screenRect = screenRef.current.getBoundingClientRect();
     const scaleX = screenInfo.width / screenRect.width;
     const scaleY = screenInfo.height / screenRect.height;
-    
+
     let x = (e.clientX - screenRect.left) * scaleX;
     let y = (e.clientY - screenRect.top) * scaleY;
-    
-    // Clamp coordinates to valid screen bounds
     x = Math.max(0, Math.min(screenInfo.width - 1, x));
     y = Math.max(0, Math.min(screenInfo.height - 1, y));
-    
-    sendControlCommand({
-      type: 'mouse_scroll',
-      x: Math.round(x),
-      y: Math.round(y),
-      scroll: e.deltaY > 0 ? -3 : 3
-    });
+
+    const rdx = e.shiftKey ? e.deltaY : e.deltaX;
+    const rdy = e.shiftKey ? 0 : e.deltaY;
+    const ax = Math.abs(rdx);
+    const ay = Math.abs(rdy);
+
+    const step = (delta) => {
+      if (delta === 0) return 0;
+      return -Math.sign(delta) * Math.min(14, Math.max(1, Math.round(Math.abs(delta) / 25)));
+    };
+
+    let scroll = 0;
+    let scroll_horizontal = 0;
+    if (ax < 1 && ay < 1) return;
+    if (ay >= ax) {
+      scroll = step(rdy);
+      if (ax > 6) scroll_horizontal = step(rdx);
+    } else {
+      scroll_horizontal = step(rdx);
+      if (ay > 6) scroll = step(rdy);
+    }
+
+    if (scroll !== 0 || scroll_horizontal !== 0) {
+      sendControlCommand({
+        type: 'mouse_scroll',
+        x: Math.round(x),
+        y: Math.round(y),
+        scroll,
+        scroll_horizontal
+      });
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -381,69 +606,101 @@ const ScreenShare = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  const toolBtn =
+    'inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors border border-gray-200/80 dark:border-gray-700/80 bg-white/60 dark:bg-gray-900/50 text-gray-800 dark:text-gray-200 hover:bg-white/90 dark:hover:bg-gray-800/70';
+
+  const statusPill = (ok, label) => (
+    <div
+      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium backdrop-blur-md border ${
+        ok
+          ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-800 dark:text-emerald-300'
+          : 'bg-red-500/10 border-red-500/25 text-red-800 dark:text-red-300'
+      }`}
+    >
+      <span className={`h-2 w-2 rounded-full shrink-0 ${ok ? 'bg-emerald-500' : 'bg-red-500'}`} />
+      {label}
+    </div>
+  );
+
+  const rangeClass =
+    'w-full h-2 rounded-lg appearance-none bg-gray-200 dark:bg-gray-700 accent-blue-600 dark:accent-blue-500 cursor-pointer';
+
   return (
-    <div className="h-full flex flex-col bg-gray-900">
-      {/* Header */}
-      <div className="bg-gray-800 text-white px-6 py-4 flex items-center justify-between border-b border-gray-700">
-        <div className="flex items-center space-x-4">
-          <Monitor className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Screen Share & Remote Control</h1>
+    <div className="page-shell-flex gap-5 min-h-0">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+          Screen Sharing
+        </h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+          <Monitor className="h-4 w-4 shrink-0 opacity-80" />
+          View and control the remote display — click or tap the picture first for keyboard focus
+        </p>
+      </div>
+
+      <div className="glass-card py-3 px-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {statusPill(isConnected, isConnected ? 'Stream live' : 'Stream offline')}
+          {statusPill(
+            isControlConnected,
+            isControlConnected ? 'Control channel ready' : 'Control channel idle'
+          )}
         </div>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <div className={`h-3 w-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-            <span className="text-sm">{isConnected ? 'Screen Connected' : 'Disconnected'}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className={`h-3 w-3 rounded-full ${isControlConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-            <span className="text-sm">{isControlConnected ? 'Control Active' : 'Control Inactive'}</span>
-          </div>
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors flex items-center space-x-2"
-          >
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => setShowSettings((s) => !s)} className={toolBtn}>
             <Settings className="h-4 w-4" />
-            <span>Settings</span>
+            {showSettings ? 'Hide' : 'Stream'} settings
           </button>
           <button
+            type="button"
             onClick={() => setMouseControlEnabled(!mouseControlEnabled)}
-            className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
-              mouseControlEnabled 
-                ? 'bg-green-700 hover:bg-green-600' 
-                : 'bg-gray-700 hover:bg-gray-600'
+            className={`${toolBtn} ${
+              mouseControlEnabled
+                ? 'border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-900 dark:text-emerald-200'
+                : ''
             }`}
-            title={mouseControlEnabled ? 'Disable Mouse Control' : 'Enable Mouse Control'}
+            title={mouseControlEnabled ? 'Disable pointer' : 'Enable pointer'}
           >
             <MousePointer className="h-4 w-4" />
-            <span>{mouseControlEnabled ? 'Control ON' : 'Control OFF'}</span>
+            Pointer {mouseControlEnabled ? 'on' : 'off'}
           </button>
-          <button
-            onClick={toggleFullscreen}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors flex items-center space-x-2"
-          >
+          <button type="button" onClick={toggleFullscreen} className={toolBtn} title="Full screen">
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            {isFullscreen ? 'Exit' : 'Full screen'}
           </button>
         </div>
       </div>
 
-      {/* Settings Panel */}
       {showSettings && (
-        <div className="bg-gray-800 text-white px-6 py-4 border-b border-gray-700">
-          <div className="grid grid-cols-3 gap-4">
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Stream quality</h2>
+            <button
+              type="button"
+              onClick={() => setShowSettings(false)}
+              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400"
+              aria-label="Close settings"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-sm font-medium mb-2">Quality (10-100)</label>
+              <label className="block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+                Quality · {settings.quality}
+              </label>
               <input
                 type="range"
                 min="10"
                 max="100"
                 value={settings.quality}
-                onChange={(e) => setSettings({ ...settings, quality: parseInt(e.target.value) })}
-                className="w-full"
+                onChange={(e) => setSettings({ ...settings, quality: parseInt(e.target.value, 10) })}
+                className={rangeClass}
               />
-              <span className="text-sm text-gray-400">{settings.quality}</span>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Scale (0.1-2.0)</label>
+              <label className="block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+                Scale · {settings.scale.toFixed(1)}×
+              </label>
               <input
                 type="range"
                 min="0.1"
@@ -451,92 +708,137 @@ const ScreenShare = () => {
                 step="0.1"
                 value={settings.scale}
                 onChange={(e) => setSettings({ ...settings, scale: parseFloat(e.target.value) })}
-                className="w-full"
+                className={rangeClass}
               />
-              <span className="text-sm text-gray-400">{settings.scale.toFixed(1)}</span>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">FPS (1-30)</label>
+              <label className="block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+                Frame rate · {settings.fps} fps
+              </label>
               <input
                 type="range"
                 min="1"
                 max="30"
                 value={settings.fps}
-                onChange={(e) => setSettings({ ...settings, fps: parseInt(e.target.value) })}
-                className="w-full"
+                onChange={(e) => setSettings({ ...settings, fps: parseInt(e.target.value, 10) })}
+                className={rangeClass}
               />
-              <span className="text-sm text-gray-400">{settings.fps}</span>
             </div>
           </div>
           <button
+            type="button"
             onClick={updateSettings}
-            className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+            className="mt-5 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-500 transition-colors"
           >
-            Apply Settings
+            Apply to session
           </button>
         </div>
       )}
 
-      {/* Error Message */}
       {error && (
-        <div className="bg-red-600 text-white px-6 py-3">
-          <p>{error}</p>
+        <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/90 dark:bg-red-950/35 px-4 py-3 text-sm text-red-800 dark:text-red-300 backdrop-blur-sm">
+          {error}
         </div>
       )}
 
-      {/* Screen Display */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-auto bg-black flex items-center justify-center p-4"
-        onContextMenu={(e) => e.preventDefault()}
-        tabIndex={0}
-        onMouseMove={handleMouseMove}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={() => setIsMouseDown(false)}
-        onWheel={handleWheel}
-        onKeyDown={handleKeyDown}
-        onKeyUp={handleKeyUp}
-        onKeyPress={handleKeyPress}
+        className="flex-1 flex flex-col min-h-[min(58vh,680px)] rounded-2xl overflow-hidden border border-gray-200/90 dark:border-gray-800/90 shadow-2xl shadow-gray-900/10 dark:shadow-black/40 bg-gray-950 ring-1 ring-black/5 dark:ring-white/10"
       >
-        {screenImage ? (
-          <img
-            ref={screenRef}
-            src={screenImage}
-            alt="Remote Screen"
-            className="max-w-full max-h-full object-contain select-none"
-            style={{ imageRendering: 'pixelated' }}
-            draggable={false}
-          />
-        ) : (
-          <div className="text-white text-center">
-            <Monitor className="h-16 w-16 mx-auto mb-4 opacity-50" />
-            <p className="text-xl">Waiting for screen connection...</p>
-            {!isConnected && (
-              <p className="text-sm text-gray-400 mt-2">Attempting to connect...</p>
-            )}
+        <div className="flex items-center gap-3 px-3 py-2.5 border-b border-white/10 bg-gray-900/85 dark:bg-black/60 backdrop-blur-xl">
+          <div className="flex items-center gap-1.5 pl-1" aria-hidden>
+            <span className="h-3 w-3 rounded-full bg-red-500 shadow-sm ring-1 ring-black/20" />
+            <span className="h-3 w-3 rounded-full bg-amber-400 shadow-sm ring-1 ring-black/15" />
+            <span className="h-3 w-3 rounded-full bg-emerald-500 shadow-sm ring-1 ring-black/20" />
           </div>
-        )}
-      </div>
-
-      {/* Instructions */}
-      <div className="bg-gray-800 text-white px-6 py-3 border-t border-gray-700">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-6 text-sm">
-            <div className="flex items-center space-x-2">
-              <MousePointer className="h-4 w-4" />
-              <span>Click to control mouse</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Keyboard className="h-4 w-4" />
-              <span>Type to send keyboard input</span>
-            </div>
+          <div className="flex-1 text-center">
+            <span className="text-xs font-medium text-gray-400 dark:text-gray-500 tracking-tight">
+              Remote Display
+            </span>
           </div>
           {screenInfo && (
-            <div className="text-sm text-gray-400">
-              Resolution: {screenInfo.width} × {screenInfo.height}
+            <span className="text-[11px] tabular-nums text-gray-500 dark:text-gray-400 pr-1">
+              {screenInfo.width} × {screenInfo.height}
+            </span>
+          )}
+        </div>
+
+        <div
+          className="flex-1 overflow-auto bg-black flex items-center justify-center p-3 sm:p-4 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-inset"
+          onContextMenu={(e) => e.preventDefault()}
+          tabIndex={0}
+          ref={touchSurfaceRef}
+          style={{
+            touchAction: mouseControlEnabled ? 'none' : 'auto',
+            WebkitTouchCallout: 'none'
+          }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+          onMouseMove={handleMouseMove}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={() => {
+            isPointerDownRef.current = false;
+          }}
+          onWheel={handleWheel}
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
+          onKeyPress={handleKeyPress}
+        >
+          {screenImage ? (
+            <img
+              ref={screenRef}
+              src={screenImage}
+              alt="Remote screen"
+              className="max-w-full max-h-full object-contain select-none rounded-lg shadow-lg ring-1 ring-white/10"
+              style={{ imageRendering: 'auto' }}
+              draggable={false}
+            />
+          ) : (
+            <div className="text-center px-6 py-12 max-w-sm">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 ring-1 ring-white/10">
+                <Monitor className="h-8 w-8 text-gray-500" strokeWidth={1.25} />
+              </div>
+              <p className="text-base font-medium text-gray-300">Waiting for frames…</p>
+              {!isConnected && (
+                <p className="text-sm text-gray-500 mt-2">Connecting to the screen WebSocket</p>
+              )}
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="glass-card py-3 px-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-gray-600 dark:text-gray-400">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <span className="inline-flex items-center gap-2">
+              <MousePointer className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0" />
+              Click and drag on the picture to move the remote pointer
+            </span>
+            <span className="inline-flex items-center gap-2 max-w-md">
+              <Smartphone className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0 mt-0.5" />
+              <span>
+                Touch: <strong className="font-medium text-gray-700 dark:text-gray-300">1</strong> finger — move
+                &amp; drag; <strong className="font-medium text-gray-700 dark:text-gray-300">2</strong> fingers — pan
+                to scroll <span className="whitespace-nowrap">(↕ ↔)</span>; hold center still and{' '}
+                <strong className="font-medium text-gray-700 dark:text-gray-300">spread/pinch</strong> to zoom the
+                remote app <ZoomIn className="inline h-3.5 w-3.5 -mt-0.5 opacity-70" aria-hidden />
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <Keyboard className="h-4 w-4 text-gray-400 dark:text-gray-500 shrink-0" />
+              Focus the black area, then type (modifiers map to the remote Mac)
+            </span>
+          </div>
+          <span className="text-xs text-gray-500 dark:text-gray-500 shrink-0 text-right sm:text-left max-w-md sm:max-w-none">
+            Wheel / trackpad: vertical scroll; sideways with horizontal trackpad delta or{' '}
+            <kbd className="px-1 py-0.5 rounded bg-gray-200/80 dark:bg-gray-800/80 font-mono text-[10px]">
+              Shift
+            </kbd>
+            + wheel. Right-click: use Control+click on the remote Mac (browser blocks right-click here).
+          </span>
         </div>
       </div>
     </div>

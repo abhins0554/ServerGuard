@@ -66,47 +66,53 @@ const PackageManagement = () => {
   ];
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <Package className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 dark:text-blue-400" />
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Package Management</h1>
-          </div>
-          {activeTab !== 'search' && (
-            <button
-              onClick={() => activeTab === 'installed' ? loadPackages() : checkUpdates()}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
-          )}
+    <div className="page-shell-flex gap-5 min-h-0">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 shrink-0">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100 flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20">
+              <Package className="h-5 w-5" />
+            </span>
+            Packages
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Installed software, updates, and repository search
+          </p>
         </div>
+        {activeTab !== 'search' && (
+          <button
+            type="button"
+            onClick={() => (activeTab === 'installed' ? loadPackages() : checkUpdates())}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium shadow-lg shadow-blue-600/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        )}
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6">
-        <div className="flex space-x-1 overflow-x-auto">
+      <div className="glass-card p-2 sm:p-2.5 shrink-0">
+        <div className="flex gap-1 overflow-x-auto pb-0.5">
           {tabs.map((tab) => {
             const Icon = tab.icon;
+            const active = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => {
                   setActiveTab(tab.id);
                   setSearchQuery('');
                   setSearchResults([]);
                 }}
-                className={`flex items-center space-x-2 px-4 py-3 font-medium transition-colors whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium rounded-xl whitespace-nowrap transition-colors ${
+                  active
+                    ? 'bg-blue-500/12 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 shadow-sm ring-1 ring-blue-500/20'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4 shrink-0" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -114,23 +120,23 @@ const PackageManagement = () => {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-4 sm:p-6">
+      <div className="flex-1 min-h-0 overflow-auto space-y-6">
         {/* Installed Packages Tab */}
         {activeTab === 'installed' && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+          <div className="glass-card">
             <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search installed packages..."
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="input-field flex-1"
                 onKeyPress={(e) => e.key === 'Enter' && loadPackages()}
               />
               <button
+                type="button"
                 onClick={loadPackages}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-blue-600/20 transition-colors"
               >
                 Search
               </button>
@@ -144,17 +150,17 @@ const PackageManagement = () => {
                   Total: {pagination.total} packages | Page {pagination.page} of {pagination.pages}
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
+                  <table className="min-w-full divide-y divide-gray-200/80 dark:divide-gray-800/80">
+                    <thead className="bg-black/[0.03] dark:bg-white/[0.04]">
                       <tr>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Package Name</th>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Version</th>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-gray-200/80 dark:divide-gray-800/80">
                       {packages.map((pkg, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <tr key={idx} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors">
                           <td className="px-4 sm:px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">{pkg.name}</td>
                           <td className="px-4 sm:px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{pkg.version}</td>
                           <td className="px-4 sm:px-6 py-4 text-sm">
@@ -195,7 +201,7 @@ const PackageManagement = () => {
 
         {/* Updates Tab */}
         {activeTab === 'updates' && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+          <div className="glass-card">
             <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">System Updates</h2>
             {loading ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">Checking for updates...</div>
@@ -251,7 +257,7 @@ const PackageManagement = () => {
 
         {/* Search Tab */}
         {activeTab === 'search' && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+          <div className="glass-card">
             <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Search Packages</h2>
             <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <input
@@ -259,13 +265,14 @@ const PackageManagement = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Enter package name to search..."
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="input-field flex-1"
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               />
               <button
+                type="button"
                 onClick={handleSearch}
                 disabled={searchLoading}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-blue-600/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {searchLoading ? 'Searching...' : 'Search'}
               </button>
@@ -277,17 +284,17 @@ const PackageManagement = () => {
                   Found {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
                 </div>
                 <div className="overflow-x-auto max-h-96">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
+                  <table className="min-w-full divide-y divide-gray-200/80 dark:divide-gray-800/80">
+                    <thead className="bg-black/[0.03] dark:bg-white/[0.04]">
                       <tr>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Package Name</th>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Description</th>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Manager</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-gray-200/80 dark:divide-gray-800/80">
                       {searchResults.map((result, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <tr key={idx} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors">
                           <td className="px-4 sm:px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">{result.name}</td>
                           <td className="px-4 sm:px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{result.description || '-'}</td>
                           <td className="px-4 sm:px-6 py-4 text-sm">

@@ -51,12 +51,23 @@
 }
 
 @layer components {
+  /* Mac-like frosted panels: extra padding + soft depth */
   .glass-card {
-    @apply bg-white/70 dark:bg-gray-900/40 backdrop-blur-xl border border-white/20 dark:border-gray-800/50 shadow-2xl rounded-2xl p-6 transition-all duration-300;
+    @apply bg-white/60 dark:bg-gray-900/40 backdrop-blur-2xl border border-white/35 dark:border-gray-800/55 rounded-2xl p-6 sm:px-8 sm:py-7 shadow-[0_8px_32px_-8px_rgba(15,23,42,0.12)] dark:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.45)] ring-1 ring-black/[0.04] dark:ring-white/[0.06] transition-all duration-300;
+  }
+
+  /* Page content rhythm — use on route root instead of bare p-6 */
+  .page-shell {
+    @apply w-full p-6 md:p-8 lg:px-10 lg:py-10 space-y-7 md:space-y-9 pb-12 md:pb-14;
+  }
+
+  /* Same outer padding as .page-shell, without vertical spacing (pair with flex + gap) */
+  .page-shell-flex {
+    @apply w-full p-6 md:p-8 lg:px-10 lg:py-10 pb-12 md:pb-14 flex flex-col;
   }
   
   .glass-sidebar {
-    @apply bg-white/40 dark:bg-gray-950/40 backdrop-blur-2xl border-r border-white/20 dark:border-gray-800/30;
+    @apply bg-white/55 dark:bg-gray-950/55 backdrop-blur-2xl border-r border-white/40 dark:border-gray-800/50 shadow-[6px_0_36px_-16px_rgba(15,23,42,0.14)] dark:shadow-[8px_0_40px_-12px_rgba(0,0,0,0.5)];
   }
   
   .metric-card {
@@ -106,4 +117,13 @@
     100% { background-position: 200% 0; }
   }
 }
- 
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

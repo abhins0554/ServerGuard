@@ -88,11 +88,11 @@ const MemoryDetails = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="page-shell">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Memory Details</h1>
-        <div className="flex items-center space-x-2 text-sm text-gray-600">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Memory Details</h1>
+        <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
           <Database className="h-4 w-4" />
           <span>RAM and swap memory information</span>
         </div>
@@ -100,15 +100,15 @@ const MemoryDetails = () => {
 
       {/* Memory Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <Database className="h-6 w-6 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">RAM Usage</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">RAM Usage</h3>
           </div>
           <div className="text-4xl font-bold text-blue-600 mb-2">
             {memoryInfo?.memory?.percent?.toFixed(1) || 0}%
           </div>
-          <div className="text-sm text-gray-600 mb-2">
+          <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
             {formatBytes(memoryInfo?.memory?.used || 0)} / {formatBytes(memoryInfo?.memory?.total || 0)}
           </div>
           <div className="progress-bar">
@@ -119,15 +119,15 @@ const MemoryDetails = () => {
           </div>
         </div>
 
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <HardDrive className="h-6 w-6 text-orange-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Swap Usage</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Swap Usage</h3>
           </div>
           <div className="text-4xl font-bold text-orange-600 mb-2">
             {memoryInfo?.swap?.percent?.toFixed(1) || 0}%
           </div>
-          <div className="text-sm text-gray-600 mb-2">
+          <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
             {formatBytes(memoryInfo?.swap?.used || 0)} / {formatBytes(memoryInfo?.swap?.total || 0)}
           </div>
           <div className="progress-bar">
@@ -138,15 +138,15 @@ const MemoryDetails = () => {
           </div>
         </div>
 
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <TrendingUp className="h-6 w-6 text-green-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Available Memory</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Available Memory</h3>
           </div>
           <div className="text-3xl font-bold text-green-600 mb-2">
             {formatBytes(memoryInfo?.memory?.available || 0)}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Free memory for applications
           </div>
         </div>
@@ -154,8 +154,8 @@ const MemoryDetails = () => {
 
       {/* Memory Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">RAM Distribution</h3>
+        <div className="glass-card">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">RAM Distribution</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -179,17 +179,17 @@ const MemoryDetails = () => {
           <div className="flex justify-center space-x-4 mt-4">
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-blue-500 rounded"></div>
-              <span className="text-sm text-gray-600">Used</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Used</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-green-500 rounded"></div>
-              <span className="text-sm text-gray-600">Available</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Available</span>
             </div>
           </div>
         </div>
 
-        <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Swap Distribution</h3>
+        <div className="glass-card">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Swap Distribution</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -213,87 +213,87 @@ const MemoryDetails = () => {
           <div className="flex justify-center space-x-4 mt-4">
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-orange-500 rounded"></div>
-              <span className="text-sm text-gray-600">Used</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Used</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-gray-500 rounded"></div>
-              <span className="text-sm text-gray-600">Free</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Free</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Memory Details Table */}
-      <div className="card mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Memory Information</h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+      <div className="glass-card mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Memory Information</h3>
+        <div className="overflow-x-auto rounded-lg border border-gray-200/80 dark:border-gray-700/80">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900/70">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Metric
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Value
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Percentage
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+            <tbody className="bg-white/80 dark:bg-gray-950/40 divide-y divide-gray-200 dark:divide-gray-700">
+              <tr className="dark:hover:bg-gray-800/40">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                   Total RAM
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                   {formatBytes(memoryInfo?.memory?.total || 0)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                   100%
                 </td>
               </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+              <tr className="dark:hover:bg-gray-800/40">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                   Used RAM
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                   {formatBytes(memoryInfo?.memory?.used || 0)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                   {memoryInfo?.memory?.percent?.toFixed(1) || 0}%
                 </td>
               </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+              <tr className="dark:hover:bg-gray-800/40">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                   Available RAM
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                   {formatBytes(memoryInfo?.memory?.available || 0)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                   {((memoryInfo?.memory?.available || 0) / (memoryInfo?.memory?.total || 1) * 100).toFixed(1)}%
                 </td>
               </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+              <tr className="dark:hover:bg-gray-800/40">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                   Total Swap
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                   {formatBytes(memoryInfo?.swap?.total || 0)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                   100%
                 </td>
               </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+              <tr className="dark:hover:bg-gray-800/40">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                   Used Swap
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                   {formatBytes(memoryInfo?.swap?.used || 0)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                   {memoryInfo?.swap?.percent?.toFixed(1) || 0}%
                 </td>
               </tr>
@@ -303,8 +303,8 @@ const MemoryDetails = () => {
       </div>
 
       {/* Usage History Chart */}
-      <div className="card">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Memory Usage History</h3>
+      <div className="glass-card">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Memory Usage History</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={history}>

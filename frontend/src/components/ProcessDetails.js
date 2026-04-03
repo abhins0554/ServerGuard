@@ -123,11 +123,11 @@ const ProcessDetails = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="page-shell">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Process Monitor</h1>
-        <div className="flex items-center space-x-2 text-sm text-gray-600">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Process Monitor</h1>
+        <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
           <Activity className="h-4 w-4" />
           <span>Real-time process monitoring</span>
           {lastUpdate && (
@@ -143,7 +143,7 @@ const ProcessDetails = () => {
       <div className="flex flex-col md:flex-row justify-between mb-6 space-y-4 md:space-y-0">
         <div className="relative w-full md:w-1/3">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
+            <Search className="h-5 w-5 text-gray-400 dark:text-gray-500" />
           </div>
           <input
             type="text"
@@ -154,30 +154,30 @@ const ProcessDetails = () => {
           />
           {searchTerm && (
             <button
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               onClick={() => setSearchTerm('')}
             >
-              <X className="h-5 w-5 text-gray-400" />
+              <X className="h-5 w-5" />
             </button>
           )}
         </div>
 
-        <div className="flex space-x-4">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center space-x-2">
             <input
               type="checkbox"
               id="autoRefresh"
               checked={isAutoRefresh}
               onChange={() => setIsAutoRefresh(!isAutoRefresh)}
-              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-blue-600 focus:ring-blue-500/50"
             />
-            <label htmlFor="autoRefresh" className="text-sm text-gray-700">Auto-refresh</label>
+            <label htmlFor="autoRefresh" className="text-sm text-gray-700 dark:text-gray-300">Auto-refresh</label>
           </div>
 
           <select
             value={refreshInterval}
             onChange={(e) => setRefreshInterval(Number(e.target.value))}
-            className="text-sm border border-gray-300 rounded-md px-2 py-1"
+            className="text-sm rounded-md px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-white/80 dark:bg-gray-950/60 text-foreground disabled:opacity-50"
             disabled={!isAutoRefresh}
           >
             <option value={2000}>2 seconds</option>
@@ -197,16 +197,16 @@ const ProcessDetails = () => {
       </div>
 
       {/* Pagination Controls */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-600">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
             Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalProcesses)} of {totalProcesses} processes
           </span>
           
           <select
             value={pageSize}
             onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-            className="text-sm border border-gray-300 rounded-md px-2 py-1"
+            className="text-sm rounded-md px-2 py-1.5 border border-gray-300 dark:border-gray-700 bg-white/80 dark:bg-gray-950/60 text-foreground"
           >
             <option value={25}>25 per page</option>
             <option value={50}>50 per page</option>
@@ -219,19 +219,19 @@ const ProcessDetails = () => {
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage <= 1}
-            className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
             Page {currentPage} of {totalPages}
           </span>
           
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
-            className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -239,14 +239,14 @@ const ProcessDetails = () => {
       </div>
 
       {/* Process Table */}
-      <div className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+      <div className="rounded-2xl overflow-hidden border border-gray-200/80 dark:border-gray-800/80 bg-white/80 dark:bg-gray-950/40 shadow-md backdrop-blur-xl">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900/70">
               <tr>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('pid')}
                 >
                   <div className="flex items-center space-x-1">
@@ -256,7 +256,7 @@ const ProcessDetails = () => {
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('name')}
                 >
                   <div className="flex items-center space-x-1">
@@ -266,7 +266,7 @@ const ProcessDetails = () => {
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('username')}
                 >
                   <div className="flex items-center space-x-1">
@@ -276,7 +276,7 @@ const ProcessDetails = () => {
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('cpu_percent')}
                 >
                   <div className="flex items-center space-x-1">
@@ -286,7 +286,7 @@ const ProcessDetails = () => {
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('memory_percent')}
                 >
                   <div className="flex items-center space-x-1">
@@ -296,7 +296,7 @@ const ProcessDetails = () => {
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('status')}
                 >
                   <div className="flex items-center space-x-1">
@@ -306,7 +306,7 @@ const ProcessDetails = () => {
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
                   onClick={() => handleSort('create_time')}
                 >
                   <div className="flex items-center space-x-1">
@@ -316,64 +316,67 @@ const ProcessDetails = () => {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white/80 dark:bg-transparent divide-y divide-gray-200 dark:divide-gray-700">
               {loading && processes.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     Loading processes...
                   </td>
                 </tr>
               ) : filteredProcesses.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     No processes found
                   </td>
                 </tr>
               ) : (
                 filteredProcesses.map((process) => (
-                  <tr key={process.pid} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <tr key={process.pid} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                       {process.pid}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                       {process.name || 'Unknown'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                       {process.username || 'Unknown'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                       <div className="flex items-center">
                         <div className="w-16">{formatCpu(process.cpu_percent)}</div>
-                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                        <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                           <div
-                            className="bg-blue-600 h-2 rounded-full"
+                            className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full"
                             style={{ width: `${Math.min(process.cpu_percent || 0, 100)}%` }}
                           ></div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                       <div className="flex items-center">
                         <div className="w-16">{formatMemory(process.memory_percent)}</div>
-                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                        <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                           <div
-                            className="bg-green-600 h-2 rounded-full"
+                            className="bg-green-600 dark:bg-green-500 h-2 rounded-full"
                             style={{ width: `${Math.min(process.memory_percent || 0, 100)}%` }}
                           ></div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        process.status === 'running' ? 'bg-green-100 text-green-800' :
-                        process.status === 'sleeping' ? 'bg-blue-100 text-blue-800' :
-                        process.status === 'stopped' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
+                        process.status === 'running'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/45 dark:text-green-300'
+                          : process.status === 'sleeping'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/45 dark:text-blue-300'
+                          : process.status === 'stopped'
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900/45 dark:text-red-300'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800/80 dark:text-gray-300'
                       }`}>
                         {process.status || 'Unknown'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                       {formatDate(process.create_time)}
                     </td>
                   </tr>
@@ -385,7 +388,7 @@ const ProcessDetails = () => {
       </div>
 
       {/* Process Count */}
-      <div className="mt-4 text-sm text-gray-600">
+      <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
         Showing {filteredProcesses.length} of {processes.length} processes on this page
       </div>
     </div>

@@ -86,22 +86,22 @@ const CpuDetails = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="page-shell">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">CPU Details</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">CPU Details</h1>
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
+          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
             <Cpu className="h-4 w-4" />
             <span>Processor information and usage statistics</span>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 dark:text-gray-400">
               Method: {getCalculationMethod()}
             </div>
             <button
               onClick={() => setUseDetailedApi(!useDetailedApi)}
-              className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700"
+              className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
             >
               <RefreshCw className="h-4 w-4" />
               <span>{useDetailedApi ? 'Switch to Basic' : 'Switch to Detailed'}</span>
@@ -112,10 +112,10 @@ const CpuDetails = () => {
 
       {/* CPU Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <Activity className="h-6 w-6 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Current Usage</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Current Usage</h3>
           </div>
           <div className="text-4xl font-bold text-blue-600 mb-2">
             {cpuInfo?.cpu_percent?.toFixed(1) || 0}%
@@ -127,57 +127,62 @@ const CpuDetails = () => {
             ></div>
           </div>
           {cpuInfo?.calculation_methods && (
-            <div className="mt-2 text-xs text-gray-500">
+            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               <div>Standard: {cpuInfo.calculation_methods.standard_psutil?.toFixed(1)}%</div>
               <div>CPU Times: {cpuInfo.calculation_methods.cpu_times_total?.toFixed(1)}%</div>
             </div>
           )}
         </div>
 
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <Zap className="h-6 w-6 text-green-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Frequency</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Frequency</h3>
           </div>
           <div className="text-2xl font-bold text-green-600 mb-2">
             {formatFrequency(cpuInfo?.cpu_freq?.current)}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Min: {formatFrequency(cpuInfo?.cpu_freq?.min)} | Max: {formatFrequency(cpuInfo?.cpu_freq?.max)}
           </div>
         </div>
 
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <Clock className="h-6 w-6 text-purple-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Cores</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Cores</h3>
           </div>
           <div className="text-4xl font-bold text-purple-600 mb-2">
             {cpuInfo?.cpu_count || 0}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Physical and logical cores
           </div>
         </div>
       </div>
 
       {/* CPU Model Info */}
-      <div className="card mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Processor Information</h3>
-        <div className="bg-gray-50 rounded-lg p-4">
-          <p className="text-gray-700 font-medium">{cpuInfo?.cpu_model || 'Unknown'}</p>
+      <div className="glass-card mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Processor Information</h3>
+        <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200/70 dark:border-gray-800/70 rounded-lg p-4">
+          <p className="text-gray-800 dark:text-gray-100 font-medium">{cpuInfo?.cpu_model || 'Unknown'}</p>
         </div>
       </div>
 
       {/* Per-Core Usage */}
-      <div className="card mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Per-Core Usage</h3>
+      <div className="glass-card mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Per-Core Usage</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {cpuInfo?.cpu_percent_per_core?.map((usage, index) => (
-            <div key={index} className="bg-gray-50 rounded-lg p-4">
+            <div
+              key={index}
+              className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200/70 dark:border-gray-800/70 rounded-lg p-4"
+            >
               <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-gray-700">Core {index + 1}</span>
-                <span className="text-sm font-bold text-blue-600">{usage.toFixed(1)}%</span>
+                <span className="font-medium text-gray-700 dark:text-gray-100">Core {index + 1}</span>
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                  {usage.toFixed(1)}%
+                </span>
               </div>
               <div className="progress-bar">
                 <div
@@ -191,8 +196,8 @@ const CpuDetails = () => {
       </div>
 
       {/* Usage History Chart */}
-      <div className="card mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">CPU Usage History</h3>
+      <div className="glass-card mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">CPU Usage History</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={history}>
@@ -207,8 +212,10 @@ const CpuDetails = () => {
       </div>
 
       {/* Per-Core Chart */}
-      <div className="card">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Per-Core Usage Chart</h3>
+      <div className="glass-card">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          Per-Core Usage Chart
+        </h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={history.slice(-1)}>

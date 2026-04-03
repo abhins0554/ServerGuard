@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Terminal as TerminalIcon, Send, Clipboard, AlertCircle, Wifi, WifiOff, RefreshCw, Folder, Clock, Zap, Shield } from 'lucide-react';
-import { systemAPI, wsManager } from '../services/api';
+import { systemAPI, wsManager, getWebSocketBaseUrl } from '../services/api';
 
 // Platform detection function
 const detectPlatform = () => {
@@ -180,7 +180,7 @@ const Terminal = () => {
         }
 
         // Only disconnect if we have a different URL or if explicitly reconnecting
-        const wsUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}`.replace('http', 'ws') + `/ws/terminal/${sessionId}`;
+        const wsUrl = `${getWebSocketBaseUrl()}/ws/terminal/${sessionId}`;
         if (wsRef.current && wsRef.current.url !== wsUrl) {
           log('info', 'Clearing existing WebSocket connection (different URL)');
           wsManager.disconnect(wsRef.current.url);
@@ -540,10 +540,10 @@ const Terminal = () => {
 
   const getConnectionStatusColor = () => {
     switch (connectionHealth) {
-      case 'connected': return 'text-green-500';
-      case 'connecting': return 'text-yellow-500';
-      case 'error': return 'text-red-500';
-      default: return 'text-gray-500';
+      case 'connected': return 'text-green-500 dark:text-green-400';
+      case 'connecting': return 'text-yellow-500 dark:text-yellow-400';
+      case 'error': return 'text-red-500 dark:text-red-400';
+      default: return 'text-gray-500 dark:text-gray-400';
     }
   };
 
@@ -562,35 +562,35 @@ const Terminal = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="page-shell">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Terminal</h1>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <TerminalIcon className="h-4 w-4" />
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Terminal</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
+            <TerminalIcon className="h-4 w-4 shrink-0" />
             <span>Execute commands on the system</span>
             <div className="flex items-center space-x-1">
               {isConnected ? (
                 <>
-                  <Wifi className={`h-4 w-4 ${getConnectionStatusColor()}`} />
+                  <Wifi className={`h-4 w-4 shrink-0 ${getConnectionStatusColor()}`} />
                   <span className={getConnectionStatusColor()}>
                     Connected ({connectionMode}) - {connectionHealth}
                   </span>
                 </>
               ) : (
                 <>
-                  <WifiOff className="h-4 w-4 text-red-500" />
-                  <span className="text-red-600">Disconnected</span>
+                  <WifiOff className="h-4 w-4 shrink-0 text-red-500 dark:text-red-400" />
+                  <span className="text-red-600 dark:text-red-400">Disconnected</span>
                 </>
               )}
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             {!isConnected && connectionMode === 'websocket' && (
               <button 
                 onClick={reconnect}
-                className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm"
+                className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
               >
                 <RefreshCw className="h-4 w-4" />
                 <span>Reconnect</span>
@@ -599,7 +599,7 @@ const Terminal = () => {
             {connectionMode === 'http' && (
               <button 
                 onClick={reconnect}
-                className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm"
+                className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
               >
                 <RefreshCw className="h-4 w-4" />
                 <span>Try WebSocket</span>
@@ -607,7 +607,7 @@ const Terminal = () => {
             )}
             <button
               onClick={() => setAutoScroll(!autoScroll)}
-              className={`flex items-center space-x-1 text-sm ${autoScroll ? 'text-green-600' : 'text-gray-600'}`}
+              className={`flex items-center space-x-1 text-sm ${autoScroll ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'}`}
             >
               <Zap className="h-4 w-4" />
               <span>Auto-scroll</span>
@@ -618,12 +618,12 @@ const Terminal = () => {
 
       {/* Connection Status */}
       {connectionMode === 'http' && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="mb-4 p-3 rounded-lg border border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-950/30">
           <div className="flex items-center">
-            <Wifi className="h-4 w-4 text-blue-500 mr-2" />
-            <span className="text-blue-700 text-sm">
+            <Wifi className="h-4 w-4 text-blue-500 dark:text-blue-400 mr-2 shrink-0" />
+            <span className="text-blue-800 dark:text-blue-200/90 text-sm">
               Using HTTP mode. Commands will execute but real-time output is not available.
-              <button onClick={switchToHttp} className="ml-2 text-blue-600 hover:text-blue-800 underline">
+              <button onClick={switchToHttp} className="ml-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline">
                 Switch to WebSocket
               </button>
             </span>
@@ -632,7 +632,11 @@ const Terminal = () => {
       )}
 
       {/* Terminal Window */}
-      <div className={`bg-gray-900 rounded-lg shadow-lg overflow-hidden ${terminalTheme === 'dark' ? 'terminal-dark' : 'terminal-light'}`}>
+      <div
+        className={`rounded-2xl shadow-lg overflow-hidden border border-gray-200/90 dark:border-gray-800/90 ${
+          terminalTheme === 'dark' ? 'bg-gray-900 terminal-dark' : 'bg-gray-100 terminal-light'
+        }`}
+      >
         {/* Terminal Header */}
         <div className="bg-gray-800 px-4 py-2 flex justify-between items-center">
           <div className="flex space-x-2">
@@ -771,7 +775,7 @@ const Terminal = () => {
       
       {/* Command Suggestions */}
       <div className="mt-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
           Suggested Commands ({detectPlatform()})
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -780,22 +784,22 @@ const Terminal = () => {
               key={index}
               onClick={() => setCommand(suggestion.command)}
               disabled={!isConnected}
-              className="text-left p-3 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-left p-3 rounded-xl border transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-white/80 dark:bg-gray-900/50 border-gray-200/90 dark:border-gray-800/80 hover:bg-gray-50 dark:hover:bg-gray-800/50 backdrop-blur-sm"
             >
-              <div className="font-medium text-gray-900">{suggestion.name}</div>
-              <div className="text-sm text-gray-500 font-mono">{suggestion.command}</div>
+              <div className="font-medium text-gray-900 dark:text-gray-100">{suggestion.name}</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400 font-mono">{suggestion.command}</div>
             </button>
           ))}
         </div>
       </div>
       
       {/* Safety Notice */}
-      <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+      <div className="mt-6 p-4 rounded-xl border border-yellow-200 dark:border-yellow-800/60 bg-yellow-50 dark:bg-yellow-950/25">
         <div className="flex items-start">
-          <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5 mr-2" />
+          <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 mt-0.5 mr-2 shrink-0" />
           <div>
-            <h4 className="font-medium text-yellow-800">Safety Notice</h4>
-            <p className="text-sm text-yellow-700 mt-1">
+            <h4 className="font-medium text-yellow-800 dark:text-yellow-300">Safety Notice</h4>
+            <p className="text-sm text-yellow-800/95 dark:text-yellow-400/90 mt-1">
               Be careful when executing commands. Some commands may modify system settings or files.
               Dangerous commands that could harm the system are blocked for safety.
               {connectionMode === 'websocket' 

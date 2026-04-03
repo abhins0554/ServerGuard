@@ -12,10 +12,69 @@ from PIL import Image
 import pyautogui
 
 import asyncio
+import json
 import re
 import subprocess
 
 logger = logging.getLogger(__name__)
+
+
+def _get_darwin_cpu_brand():
+    """
+    Human-readable CPU name on macOS. platform.processor() is often just 'arm' on Apple Silicon.
+    Order: sysctl brand_string → system_profiler → hw.model.
+    """
+    # 1) Apple Silicon + Intel: full marketing / model string
+    try:
+        result = subprocess.run(
+            ["sysctl", "-n", "machdep.cpu.brand_string"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            brand = (result.stdout or "").strip()
+            if brand:
+                return brand
+    except Exception:
+        pass
+
+    # 2) system_profiler: chip_type (Apple M1, M2, …) or processor_name (Intel)
+    try:
+        result = subprocess.run(
+            ["system_profiler", "SPHardwareDataType", "-json"],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        if result.returncode == 0 and result.stdout:
+            data = json.loads(result.stdout)
+            items = data.get("SPHardwareDataType") or []
+            if items and isinstance(items[0], dict):
+                hw = items[0]
+                for key in ("chip_type", "processor_name", "cpu_type"):
+                    val = hw.get(key)
+                    if val and str(val).strip():
+                        return str(val).strip()
+    except Exception:
+        pass
+
+    # 3) Machine identifier (e.g. MacBookPro18,1) — better than "arm"
+    try:
+        result = subprocess.run(
+            ["sysctl", "-n", "hw.model"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            model = (result.stdout or "").strip()
+            if model:
+                return model
+    except Exception:
+        pass
+
+    return ""
 
 async def ping_ip(ip, system):
     """Ping a single IP address asynchronously"""
@@ -105,35 +164,49 @@ def get_platform_specific_cpu_info():
         except (AttributeError, FileNotFoundError, OSError):
             pass
         
-        cpu_model = platform.processor()
-        if not cpu_model or cpu_model == "":
+        # platform.processor() is often "arm" / empty on Apple Silicon — prefer OS-specific names
+        cpu_model = (platform.processor() or "").strip()
+        # Treat these as non-human-readable; replace with OS-specific lookup (e.g. Apple M1)
+        _generic_cpu = frozenset({"", "arm", "armv7l", "armv8l", "aarch64"})
+
+        if system == "Darwin":
+            brand = _get_darwin_cpu_brand()
+            if brand:
+                cpu_model = brand
+
+        if not cpu_model or cpu_model.lower() in _generic_cpu:
             if system == "Windows":
                 try:
-                    import subprocess
                     result = subprocess.run(['wmic', 'cpu', 'get', 'name'], capture_output=True, text=True, timeout=5)
                     if result.returncode == 0:
                         lines = result.stdout.strip().split('\n')
                         if len(lines) > 1:
                             cpu_model = lines[1].strip()
-                except:
-                    cpu_model = "Unknown CPU"
+                except Exception:
+                    cpu_model = cpu_model or "Unknown CPU"
             elif system == "Darwin":
-                try:
-                    import subprocess
-                    result = subprocess.run(['sysctl', '-n', 'machdep.cpu.brand_string'], capture_output=True, text=True, timeout=5)
-                    if result.returncode == 0:
-                        cpu_model = result.stdout.strip()
-                except:
-                    cpu_model = "Unknown CPU"
+                cpu_model = "Unknown CPU"
             elif system == "Linux":
                 try:
                     with open('/proc/cpuinfo', 'r') as f:
-                        for line in f:
-                            if line.startswith('model name'):
-                                cpu_model = line.split(':')[1].strip()
+                        lines = f.read().splitlines()
+                    picked = None
+                    for line in lines:
+                        if line.startswith('model name'):
+                            picked = line.split(':', 1)[1].strip()
+                            break
+                    if not picked:
+                        for line in lines:
+                            if line.startswith('Model') or line.startswith('Hardware'):
+                                picked = line.split(':', 1)[1].strip()
                                 break
-                except:
-                    cpu_model = "Unknown CPU"
+                    if picked:
+                        cpu_model = picked
+                except Exception:
+                    cpu_model = cpu_model or "Unknown CPU"
+
+        if not cpu_model or cpu_model.lower() in _generic_cpu:
+            cpu_model = "Unknown CPU"
         
         return {
             "cpu_count": cpu_count,
@@ -185,6 +258,12 @@ def get_platform_specific_network_info():
 def get_platform_specific_os_info():
     try:
         system = platform.system()
+        try:
+            processor_display = (get_platform_specific_cpu_info().get("cpu_model") or "").strip()
+        except Exception:
+            processor_display = ""
+        if not processor_display:
+            processor_display = platform.processor() or "Unknown"
         boot_time = psutil.boot_time()
         boot_time_dt = datetime.fromtimestamp(boot_time)
         uptime = datetime.now() - boot_time_dt
@@ -236,7 +315,7 @@ def get_platform_specific_os_info():
             "release": platform.release(),
             "version": platform.version(),
             "machine": platform.machine(),
-            "processor": platform.processor(),
+            "processor": processor_display,
             "hostname": socket.gethostname(),
             "boot_time": boot_time_dt.isoformat(),
             "uptime": {
@@ -249,12 +328,16 @@ def get_platform_specific_os_info():
         }
     except Exception as e:
         logger.error(f"Error getting platform-specific OS info: {e}")
+        try:
+            processor_fallback = get_platform_specific_cpu_info().get("cpu_model") or platform.processor() or "Unknown"
+        except Exception:
+            processor_fallback = platform.processor() or "Unknown"
         return {
             "system": platform.system(),
             "release": platform.release(),
             "version": platform.version(),
             "machine": platform.machine(),
-            "processor": platform.processor(),
+            "processor": processor_fallback,
             "hostname": socket.gethostname(),
             "boot_time": datetime.now().isoformat(),
             "uptime": {"days": 0, "hours": 0, "minutes": 0, "seconds": 0},
@@ -290,10 +373,36 @@ def execute_control_command(control_data: dict):
             pyautogui.moveTo(control_data.get('x', 0), control_data.get('y', 0), duration=0.01)
         elif cmd_type == 'mouse_click':
             pyautogui.click(control_data.get('x', 0), control_data.get('y', 0), button=control_data.get('button', 'left'))
+        elif cmd_type == 'mouse_down':
+            pyautogui.moveTo(control_data.get('x', 0), control_data.get('y', 0), duration=0.01)
+            pyautogui.mouseDown(button=control_data.get('button', 'left'))
+        elif cmd_type == 'mouse_up':
+            pyautogui.mouseUp(button=control_data.get('button', 'left'))
         elif cmd_type == 'mouse_drag':
             pyautogui.dragTo(control_data.get('x', 0), control_data.get('y', 0), duration=0.1, button='left')
         elif cmd_type == 'mouse_scroll':
-            pyautogui.scroll(control_data.get('scroll', 0), x=control_data.get('x', 0), y=control_data.get('y', 0))
+            x = int(control_data.get('x', 0))
+            y = int(control_data.get('y', 0))
+            v = int(control_data.get('scroll', 0) or 0)
+            h = int(control_data.get('scroll_horizontal', 0) or 0)
+            try:
+                if v != 0:
+                    pyautogui.scroll(v, x=x, y=y)
+                if h != 0 and hasattr(pyautogui, 'hscroll'):
+                    pyautogui.hscroll(h, x=x, y=y)
+            except Exception as scroll_err:
+                logger.warning(f"mouse_scroll failed (v={v}, h={h}): {scroll_err}")
+        elif cmd_type == 'zoom_gesture':
+            # Pinch-spread on remote: browser/app zoom (Cmd on macOS, Ctrl elsewhere)
+            direction = control_data.get('direction')
+            mod = 'command' if platform.system() == 'Darwin' else 'ctrl'
+            try:
+                if direction == 'in':
+                    pyautogui.hotkey(mod, '=')
+                elif direction == 'out':
+                    pyautogui.hotkey(mod, '-')
+            except Exception as zoom_err:
+                logger.warning(f"zoom_gesture failed: {zoom_err}")
         elif cmd_type == 'key_press':
             if control_data.get('key'): pyautogui.press(control_data.get('key'))
         elif cmd_type == 'key_down':

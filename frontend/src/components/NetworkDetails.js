@@ -74,11 +74,11 @@ const NetworkDetails = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="page-shell">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Network Details</h1>
-        <div className="flex items-center space-x-2 text-sm text-gray-600">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Network Details</h1>
+        <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
           <Network className="h-4 w-4" />
           <span>Network interfaces and bandwidth statistics</span>
         </div>
@@ -86,54 +86,54 @@ const NetworkDetails = () => {
 
       {/* Real-time Network Utilization */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-        <div className="card bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+        <div className="glass-card border border-blue-200/80 dark:border-blue-800/60 bg-blue-50/40 dark:bg-blue-950/20">
           <div className="flex items-center space-x-3 mb-4">
-            <Activity className="h-6 w-6 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Upload Speed</h3>
+            <Activity className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Upload Speed</h3>
           </div>
-          <div className="text-2xl font-bold text-blue-600 mb-2">
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">
             {networkInfo?.formatted_utilization?.upload_speed || '0.00 MB/s'}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Current upload rate
           </div>
         </div>
 
-        <div className="card bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+        <div className="glass-card border border-green-200/80 dark:border-green-800/60 bg-green-50/40 dark:bg-green-950/20">
           <div className="flex items-center space-x-3 mb-4">
-            <TrendingUp className="h-6 w-6 text-green-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Download Speed</h3>
+            <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Download Speed</h3>
           </div>
-          <div className="text-2xl font-bold text-green-600 mb-2">
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-2">
             {networkInfo?.formatted_utilization?.download_speed || '0.00 MB/s'}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Current download rate
           </div>
         </div>
 
-        <div className="card bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
+        <div className="glass-card border border-purple-200/80 dark:border-purple-800/60 bg-purple-50/40 dark:bg-purple-950/20">
           <div className="flex items-center space-x-3 mb-4">
-            <Wifi className="h-6 w-6 text-purple-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Upload Packets</h3>
+            <Wifi className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Upload Packets</h3>
           </div>
-          <div className="text-2xl font-bold text-purple-600 mb-2">
+          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-2">
             {networkInfo?.formatted_utilization?.upload_packets || '0.0 pkt/s'}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Packets sent per second
           </div>
         </div>
 
-        <div className="card bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200">
+        <div className="glass-card border border-orange-200/80 dark:border-orange-800/60 bg-orange-50/40 dark:bg-orange-950/20">
           <div className="flex items-center space-x-3 mb-4">
-            <Globe className="h-6 w-6 text-orange-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Download Packets</h3>
+            <Globe className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Download Packets</h3>
           </div>
-          <div className="text-2xl font-bold text-orange-600 mb-2">
+          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400 mb-2">
             {networkInfo?.formatted_utilization?.download_packets || '0.0 pkt/s'}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Packets received per second
           </div>
         </div>
@@ -141,76 +141,79 @@ const NetworkDetails = () => {
 
       {/* Total Network Statistics */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <Activity className="h-6 w-6 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Total Bytes Sent</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Total Bytes Sent</h3>
           </div>
           <div className="text-2xl font-bold text-blue-600 mb-2">
             {formatBytes(networkInfo?.io_counters?.bytes_sent || 0)}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Total data sent
           </div>
         </div>
 
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <TrendingUp className="h-6 w-6 text-green-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Total Bytes Received</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Total Bytes Received</h3>
           </div>
           <div className="text-2xl font-bold text-green-600 mb-2">
             {formatBytes(networkInfo?.io_counters?.bytes_recv || 0)}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Total data received
           </div>
         </div>
 
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <Wifi className="h-6 w-6 text-purple-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Total Packets Sent</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Total Packets Sent</h3>
           </div>
           <div className="text-2xl font-bold text-purple-600 mb-2">
             {networkInfo?.io_counters?.packets_sent?.toLocaleString() || 0}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Total packets sent
           </div>
         </div>
 
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <Globe className="h-6 w-6 text-orange-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Total Packets Received</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Total Packets Received</h3>
           </div>
           <div className="text-2xl font-bold text-orange-600 mb-2">
             {networkInfo?.io_counters?.packets_recv?.toLocaleString() || 0}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Total packets received
           </div>
         </div>
       </div>
 
       {/* Network Interfaces */}
-      <div className="card mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Network Interfaces</h3>
+      <div className="glass-card mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Network Interfaces</h3>
         <div className="space-y-4">
           {Object.entries(networkInfo?.interfaces || {}).map(([interfaceName, interfaceData]) => (
-            <div key={interfaceName} className="bg-gray-50 rounded-lg p-4">
+            <div
+              key={interfaceName}
+              className="rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50 border border-gray-200/80 dark:border-gray-800/80"
+            >
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h4 className="font-semibold text-gray-900">{interfaceName}</h4>
-                  <div className="text-sm text-gray-600">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">{interfaceName}</h4>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
                     Status: {interfaceData.stats?.isup ? 'Up' : 'Down'}
                     {interfaceData.stats?.speed && ` | Speed: ${interfaceData.stats.speed} Mbps`}
                     {interfaceData.stats?.mtu && ` | MTU: ${interfaceData.stats.mtu}`}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
                     {interfaceData.addresses?.length || 0} addresses
                   </div>
                 </div>
@@ -220,8 +223,8 @@ const NetworkDetails = () => {
               <div className="space-y-2">
                 {interfaceData.addresses?.map((addr, index) => (
                   <div key={index} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">{addr.family}:</span>
-                    <span className="font-medium text-gray-900">{addr.address}</span>
+                    <span className="text-gray-600 dark:text-gray-400">{addr.family}:</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{addr.address}</span>
                   </div>
                 ))}
               </div>
@@ -233,8 +236,8 @@ const NetworkDetails = () => {
       {/* Network Traffic Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Total Traffic Chart */}
-        <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Total Network Traffic</h3>
+        <div className="glass-card">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Total Network Traffic</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={history}>
@@ -250,8 +253,8 @@ const NetworkDetails = () => {
         </div>
 
         {/* Real-time Speed Chart */}
-        <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Real-time Network Speed</h3>
+        <div className="glass-card">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Real-time Network Speed</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={history}>

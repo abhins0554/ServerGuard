@@ -197,31 +197,34 @@ const NetworkTools = () => {
   ];
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4">
-        <div className="flex items-center space-x-3">
-          <Network className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 dark:text-blue-400" />
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Network Tools</h1>
-        </div>
+    <div className="page-shell-flex gap-5 min-h-0">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+          Network Tools
+        </h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 flex-wrap">
+          <Network className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400 opacity-90" />
+          Ping, traceroute, port scan, LAN devices, and live connections
+        </p>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6">
-        <div className="flex space-x-1 overflow-x-auto">
+      <div className="glass-card p-2 sm:p-2.5">
+        <div className="flex gap-1 overflow-x-auto pb-0.5">
           {tabs.map((tab) => {
             const Icon = tab.icon;
+            const active = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-4 py-3 font-medium transition-colors whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium rounded-xl whitespace-nowrap transition-colors ${
+                  active
+                    ? 'bg-blue-500/12 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 shadow-sm ring-1 ring-blue-500/20'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4 shrink-0" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -229,13 +232,12 @@ const NetworkTools = () => {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-4 sm:p-6">
+      <div className="flex-1 min-h-0 overflow-auto space-y-6">
         {/* Ping Tab */}
         {activeTab === 'ping' && (
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Ping Test</h2>
+            <div className="glass-card p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Ping Test</h2>
               <div className="flex flex-col sm:flex-row gap-4 mb-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Host</label>
@@ -244,7 +246,7 @@ const NetworkTools = () => {
                     value={pingHost}
                     onChange={(e) => setPingHost(e.target.value)}
                     placeholder="example.com or 192.168.1.1"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="input-field rounded-xl"
                     onKeyPress={(e) => e.key === 'Enter' && handlePing()}
                   />
                 </div>
@@ -256,14 +258,14 @@ const NetworkTools = () => {
                     onChange={(e) => setPingCount(parseInt(e.target.value) || 4)}
                     min="1"
                     max="10"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="input-field rounded-xl"
                   />
                 </div>
                 <div className="flex items-end">
                   <button
                     onClick={handlePing}
                     disabled={pingLoading}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {pingLoading ? 'Pinging...' : 'Ping'}
                   </button>
@@ -286,7 +288,7 @@ const NetworkTools = () => {
                       </button>
                     )}
                   </div>
-                  <pre className="bg-gray-900 dark:bg-gray-950 text-green-400 dark:text-green-300 p-4 rounded-lg overflow-auto text-sm font-mono border border-gray-700 dark:border-gray-600">
+                  <pre className="bg-gray-950 dark:bg-black/80 text-green-400 dark:text-green-300 p-4 rounded-xl overflow-auto text-sm font-mono border border-gray-700/80 dark:border-gray-600/80 ring-1 ring-black/20">
                     {pingResult.output || pingResult.error || 'No output'}
                   </pre>
                 </div>
@@ -298,8 +300,8 @@ const NetworkTools = () => {
         {/* Traceroute Tab */}
         {activeTab === 'traceroute' && (
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Traceroute</h2>
+            <div className="glass-card p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Traceroute</h2>
               <div className="flex flex-col sm:flex-row gap-4 mb-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Host</label>
@@ -308,7 +310,7 @@ const NetworkTools = () => {
                     value={tracerouteHost}
                     onChange={(e) => setTracerouteHost(e.target.value)}
                     placeholder="example.com or 192.168.1.1"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="input-field rounded-xl"
                     onKeyPress={(e) => e.key === 'Enter' && handleTraceroute()}
                   />
                 </div>
@@ -316,7 +318,7 @@ const NetworkTools = () => {
                   <button
                     onClick={handleTraceroute}
                     disabled={tracerouteLoading}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {tracerouteLoading ? 'Tracing...' : 'Trace'}
                   </button>
@@ -339,7 +341,7 @@ const NetworkTools = () => {
                       </button>
                     )}
                   </div>
-                  <pre className="bg-gray-900 dark:bg-gray-950 text-green-400 dark:text-green-300 p-4 rounded-lg overflow-auto text-sm font-mono border border-gray-700 dark:border-gray-600">
+                  <pre className="bg-gray-950 dark:bg-black/80 text-green-400 dark:text-green-300 p-4 rounded-xl overflow-auto text-sm font-mono border border-gray-700/80 dark:border-gray-600/80 ring-1 ring-black/20">
                     {tracerouteResult.output || tracerouteResult.error || 'No output'}
                   </pre>
                 </div>
@@ -351,8 +353,8 @@ const NetworkTools = () => {
         {/* Port Scanner Tab */}
         {activeTab === 'portscan' && (
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Port Scanner</h2>
+            <div className="glass-card p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Port Scanner</h2>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Host</label>
                 <input
@@ -360,7 +362,7 @@ const NetworkTools = () => {
                   value={scanHost}
                   onChange={(e) => setScanHost(e.target.value)}
                   placeholder="192.168.1.1"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+                  className="input-field rounded-xl mb-4"
                 />
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ports (comma-separated or range: 80,443,8000-8010)</label>
                 <input
@@ -368,12 +370,12 @@ const NetworkTools = () => {
                   value={scanPorts}
                   onChange={(e) => setScanPorts(e.target.value)}
                   placeholder="80,443,8000-8010"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+                  className="input-field rounded-xl mb-4"
                 />
                 <button
                   onClick={handlePortScan}
                   disabled={scanLoading}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {scanLoading ? 'Scanning...' : 'Scan Ports'}
                 </button>
@@ -405,15 +407,15 @@ const NetworkTools = () => {
                           </div>
                         </div>
                       )}
-                      <div className="overflow-auto max-h-96">
+                      <div className="overflow-auto max-h-96 rounded-xl border border-gray-200/80 dark:border-gray-800/80">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                          <thead className="bg-gray-50 dark:bg-gray-700">
+                          <thead className="bg-gray-50 dark:bg-gray-900/70">
                             <tr>
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Port</th>
                               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Status</th>
                             </tr>
                           </thead>
-                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                          <tbody className="bg-white/95 dark:bg-gray-950/30 divide-y divide-gray-200 dark:divide-gray-700">
                             {scanResult.results?.map((result, idx) => (
                               <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                 <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{result.port}</td>
@@ -446,13 +448,13 @@ const NetworkTools = () => {
         {/* Connected Devices Tab */}
         {activeTab === 'devices' && (
           <div className="max-w-6xl mx-auto">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+            <div className="glass-card p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Connected Devices</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">Connected Devices</h2>
                 <button
                   onClick={loadDevices}
                   disabled={devicesLoading}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <RefreshCw className={`h-4 w-4 ${devicesLoading ? 'animate-spin' : ''}`} />
                   <span>{devicesLoading ? 'Scanning...' : 'Refresh'}</span>
@@ -476,9 +478,9 @@ const NetworkTools = () => {
                   <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
                     Found {devices.total || devices.devices.length} device{devices.total !== 1 ? 's' : ''} on the network
                   </div>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto rounded-xl border border-gray-200/80 dark:border-gray-800/80">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                      <thead className="bg-gray-50 dark:bg-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-900/70">
                         <tr>
                           <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             IP Address
@@ -563,12 +565,12 @@ const NetworkTools = () => {
 
         {/* Device Details Modal */}
         {selectedDevice && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl border border-gray-200/90 dark:border-gray-800/90 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col ring-1 ring-black/5 dark:ring-white/10">
               {/* Modal Header */}
-              <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200/80 dark:border-gray-800/80">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Device Details</h2>
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">Device Details</h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{selectedDevice.ip}</p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {selectedDevice.identifier || selectedDevice.hostname || (selectedDevice.mac && selectedDevice.mac !== 'Unknown' ? `Device (${selectedDevice.mac})` : 'Unknown Device')}
@@ -582,52 +584,56 @@ const NetworkTools = () => {
                     setDevicePortScan(null);
                     setDeviceDetailsTab('info');
                   }}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400"
                 >
-                  <X className="h-6 w-6" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Device Details Tabs */}
-              <div className="border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6">
-                <div className="flex space-x-1 overflow-x-auto">
+              <div className="border-b border-gray-200/80 dark:border-gray-800/80 px-3 sm:px-4 py-2 bg-gray-50/50 dark:bg-gray-950/40">
+                <div className="flex gap-1 overflow-x-auto">
                   <button
+                    type="button"
                     onClick={() => setDeviceDetailsTab('info')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                       deviceDetailsTab === 'info'
-                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                        ? 'bg-blue-500/12 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.06]'
                     }`}
                   >
                     <Server className="h-4 w-4 inline mr-1" />
                     Info
                   </button>
                   <button
+                    type="button"
                     onClick={() => setDeviceDetailsTab('ports')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                       deviceDetailsTab === 'ports'
-                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                        ? 'bg-blue-500/12 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.06]'
                     }`}
                   >
                     <Scan className="h-4 w-4 inline mr-1" />
                     Ports
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setDeviceDetailsTab('connections');
                       if (selectedDevice) loadDeviceDetails(selectedDevice.ip);
                     }}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                       deviceDetailsTab === 'connections'
-                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                        ? 'bg-blue-500/12 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.06]'
                     }`}
                   >
                     <Network className="h-4 w-4 inline mr-1" />
                     Connections
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       if (monitoringInterval) {
                         stopMonitoring();
@@ -635,10 +641,10 @@ const NetworkTools = () => {
                         startMonitoring(selectedDevice.ip);
                       }
                     }}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                       deviceDetailsTab === 'monitor'
-                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+                        ? 'bg-blue-500/12 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.06]'
                     }`}
                   >
                     <Activity className="h-4 w-4 inline mr-1" />
@@ -656,8 +662,8 @@ const NetworkTools = () => {
                     {/* Device Info Tab */}
                     {deviceDetailsTab === 'info' && (
                       <>
-                        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center">
+                        <div className="rounded-xl p-4 bg-gray-100/80 dark:bg-gray-900/50 border border-gray-200/80 dark:border-gray-800/80">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center">
                             <Server className="h-4 w-4 mr-2" />
                             Device Information
                           </h3>
@@ -686,13 +692,13 @@ const NetworkTools = () => {
                         </div>
 
                         {/* Quick Actions */}
-                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Quick Actions</h3>
+                        <div className="rounded-xl p-4 border border-gray-200/80 dark:border-gray-800/80 bg-white/50 dark:bg-gray-950/40">
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Quick Actions</h3>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <button
                               onClick={() => scanDeviceAllPorts(selectedDevice.ip)}
                               disabled={devicePortScanLoading}
-                              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                               <Scan className="h-4 w-4 mr-2" />
                               {devicePortScanLoading ? 'Scanning...' : 'Scan Common Ports'}
@@ -700,7 +706,7 @@ const NetworkTools = () => {
                             <button
                               onClick={() => scanDeviceFullPorts(selectedDevice.ip)}
                               disabled={devicePortScanLoading}
-                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                               <Shield className="h-4 w-4 mr-2" />
                               {devicePortScanLoading ? 'Scanning...' : 'Full Port Scan (1-65535)'}
@@ -710,14 +716,14 @@ const NetworkTools = () => {
                                 setDeviceDetailsTab('connections');
                                 loadDeviceDetails(selectedDevice.ip);
                               }}
-                              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition-colors flex items-center justify-center"
+                              className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2"
                             >
                               <Network className="h-4 w-4 mr-2" />
                               View Connections
                             </button>
                             <button
                               onClick={() => startMonitoring(selectedDevice.ip)}
-                              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm transition-colors flex items-center justify-center"
+                              className="px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2"
                             >
                               <Activity className="h-4 w-4 mr-2" />
                               Start Monitoring
@@ -865,7 +871,7 @@ const NetworkTools = () => {
                           ) : deviceDetails.connections.connections && deviceDetails.connections.connections.length > 0 ? (
                             <div className="overflow-x-auto">
                               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-gray-700">
+                                <thead className="bg-gray-50 dark:bg-gray-900/70">
                                   <tr>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Direction</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Local Address</th>
@@ -875,7 +881,7 @@ const NetworkTools = () => {
                                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">PID</th>
                                   </tr>
                                 </thead>
-                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                <tbody className="bg-white/95 dark:bg-gray-950/30 divide-y divide-gray-200 dark:divide-gray-700">
                                   {deviceDetails.connections.connections.map((conn, idx) => (
                                     <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                       <td className="px-4 py-3 text-sm">
@@ -1002,7 +1008,7 @@ const NetworkTools = () => {
                             {deviceDetails.connections.connections && deviceDetails.connections.connections.length > 0 && (
                               <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                  <thead className="bg-gray-50 dark:bg-gray-700">
+                                  <thead className="bg-gray-50 dark:bg-gray-900/70">
                                     <tr>
                                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Direction</th>
                                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Remote IP</th>
@@ -1010,7 +1016,7 @@ const NetworkTools = () => {
                                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Status</th>
                                     </tr>
                                   </thead>
-                                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                  <tbody className="bg-white/95 dark:bg-gray-950/30 divide-y divide-gray-200 dark:divide-gray-700">
                                     {deviceDetails.connections.connections.slice(0, 20).map((conn, idx) => (
                                       <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                         <td className="px-4 py-3 text-sm">
@@ -1065,13 +1071,13 @@ const NetworkTools = () => {
         {/* Connections Tab */}
         {activeTab === 'connections' && (
           <div className="max-w-6xl mx-auto">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+            <div className="glass-card p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Network Connections</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">Network Connections</h2>
                 <button
                   onClick={loadConnections}
                   disabled={connectionsLoading}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {connectionsLoading ? 'Loading...' : 'Refresh'}
                 </button>
@@ -1098,8 +1104,9 @@ const NetworkTools = () => {
                       <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
                         Total Connections: {connections.total || 0}
                       </div>
+                      <div className="rounded-xl border border-gray-200/80 dark:border-gray-800/80 overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-800">
+                        <thead className="bg-gray-50 dark:bg-gray-900/70">
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">PID</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Local Address</th>
@@ -1128,6 +1135,7 @@ const NetworkTools = () => {
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     </>
                   ) : (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">

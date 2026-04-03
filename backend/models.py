@@ -49,11 +49,13 @@ class DirectoryItem(BaseModel):
     modified: Optional[str] = None
 
 class ScreenControlRequest(BaseModel):
-    type: str  # 'mouse_move', 'mouse_click', 'mouse_scroll', 'key_press', 'key_type'
+    type: str  # 'mouse_move', 'mouse_click', 'mouse_scroll', 'zoom_gesture', ...
     x: Optional[float] = None
     y: Optional[float] = None
     button: Optional[str] = None  # 'left', 'right', 'middle'
     scroll: Optional[int] = None
+    scroll_horizontal: Optional[int] = None
+    direction: Optional[str] = None  # zoom_gesture: 'in' | 'out'
     key: Optional[str] = None
     text: Optional[str] = None
 

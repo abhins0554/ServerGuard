@@ -49,11 +49,12 @@ function App() {
       <Router>
         <div className="flex h-screen bg-background text-foreground overflow-hidden">
           <Sidebar onLogout={handleLogout} />
-          <main className="flex-1 relative overflow-y-auto scroll-smooth">
+          {/* lg:pl-64 reserves horizontal space for the fixed sidebar (w-64); without it, main content sits underneath */}
+          <main className="flex-1 min-w-0 w-full relative overflow-y-auto scroll-smooth lg:pl-64 lg:border-l border-gray-200/70 dark:border-gray-800/80">
             {/* Background Accent */}
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
             
-            <div className="container mx-auto">
+            <div className="w-full max-w-[1680px] mx-auto min-h-0">
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/cpu" element={<CpuDetails />} />

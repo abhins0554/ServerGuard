@@ -140,19 +140,19 @@ const DockerManagement = () => {
 
   if (!dockerAvailable && !loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center max-w-md mx-auto p-6">
-          <Package className="h-16 w-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Docker Not Available</h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">
+      <div className="page-shell-flex items-center justify-center min-h-[min(70vh,560px)]">
+        <div className="glass-card max-w-md w-full text-center">
+          <Package className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Docker Not Available</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
             {dockerError || "Docker is not installed or not accessible on this system."}
           </p>
           {dockerError && dockerError.includes("daemon is not running") && (
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 text-left mt-4">
-              <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium mb-2">How to fix:</p>
-              <ul className="text-sm text-yellow-700 dark:text-yellow-300 list-disc list-inside space-y-1">
+            <div className="rounded-xl border border-yellow-500/25 bg-yellow-500/10 dark:bg-yellow-500/10 p-4 text-left mt-4">
+              <p className="text-sm text-yellow-900 dark:text-yellow-200 font-medium mb-2">How to fix:</p>
+              <ul className="text-sm text-yellow-800 dark:text-yellow-300/90 list-disc list-inside space-y-1">
                 <li>On macOS: Start Docker Desktop application</li>
-                <li>On Linux: Run <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">sudo systemctl start docker</code></li>
+                <li>On Linux: Run <code className="bg-yellow-500/15 dark:bg-yellow-900/40 px-1.5 py-0.5 rounded-md text-xs font-mono">sudo systemctl start docker</code></li>
                 <li>On Windows: Start Docker Desktop application</li>
               </ul>
             </div>
@@ -168,33 +168,39 @@ const DockerManagement = () => {
   ];
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <Package className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 dark:text-blue-400" />
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Docker Management</h1>
-          </div>
-          <button
-            onClick={() => activeTab === 'containers' ? loadContainers() : loadImages()}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
+    <div className="page-shell-flex gap-5 min-h-0">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 shrink-0">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100 flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/20">
+              <Container className="h-5 w-5" />
+            </span>
+            Docker
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Containers, images, logs, and resource stats
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={() => (activeTab === 'containers' ? loadContainers() : loadImages())}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium shadow-lg shadow-blue-600/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={loading}
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">Refresh</span>
+        </button>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6">
-        <div className="flex space-x-1 overflow-x-auto">
+      <div className="glass-card p-2 sm:p-2.5 shrink-0">
+        <div className="flex gap-1 overflow-x-auto pb-0.5">
           {tabs.map((tab) => {
             const Icon = tab.icon;
+            const active = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => {
                   setActiveTab(tab.id);
                   setSelectedContainer(null);
@@ -202,13 +208,13 @@ const DockerManagement = () => {
                   setStats(null);
                   setActiveSubTab(null);
                 }}
-                className={`flex items-center space-x-2 px-4 py-3 font-medium transition-colors whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium rounded-xl whitespace-nowrap transition-colors ${
+                  active
+                    ? 'bg-blue-500/12 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 shadow-sm ring-1 ring-blue-500/20'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4 shrink-0" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -216,13 +222,12 @@ const DockerManagement = () => {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-4 sm:p-6">
+      <div className="flex-1 min-h-0 overflow-auto space-y-6">
         {activeTab === 'containers' && (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
             {/* Containers List */}
             <div className="xl:col-span-1">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border border-gray-200 dark:border-gray-700">
+              <div className="glass-card p-4 sm:p-5">
                 <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
                   Containers ({containers.length})
                 </h2>
@@ -245,10 +250,10 @@ const DockerManagement = () => {
                         <div
                           key={container.id}
                           onClick={() => setSelectedContainer(container)}
-                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          className={`p-3 border rounded-xl cursor-pointer transition-colors ${
                             selectedContainer?.id === container.id
-                              ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                              ? 'border-blue-500/60 dark:border-blue-400/60 bg-blue-500/10 dark:bg-blue-500/15 ring-1 ring-blue-500/20'
+                              : 'border-white/40 dark:border-gray-700/80 hover:border-white/60 dark:hover:border-gray-600 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
                           }`}
                         >
                           <div className="font-medium text-sm truncate text-gray-900 dark:text-white">
@@ -275,7 +280,7 @@ const DockerManagement = () => {
               {selectedContainer ? (
                 <div className="space-y-4 sm:space-y-6">
                   {/* Container Info */}
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+                  <div className="glass-card">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                       <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                         {selectedContainer.name || selectedContainer.id.substring(0, 12)}
@@ -361,14 +366,15 @@ const DockerManagement = () => {
                   </div>
 
                   {/* Tabs for Logs/Stats */}
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-                    <div className="border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6">
+                  <div className="glass-card p-0 overflow-hidden">
+                    <div className="border-b border-white/30 dark:border-gray-800/80 px-4 sm:px-6 bg-black/[0.02] dark:bg-white/[0.03]">
                       <div className="flex space-x-1 overflow-x-auto">
                         <button
+                          type="button"
                           onClick={() => loadLogs(selectedContainer.id)}
-                          className={`flex items-center space-x-2 px-4 py-3 font-medium transition-colors whitespace-nowrap ${
+                          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap rounded-t-lg ${
                             activeSubTab === 'logs'
-                              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                              ? 'text-blue-700 dark:text-blue-300 bg-blue-500/10'
                               : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                           }`}
                         >
@@ -376,10 +382,11 @@ const DockerManagement = () => {
                           <span>Logs</span>
                         </button>
                         <button
+                          type="button"
                           onClick={() => loadStats(selectedContainer.id)}
-                          className={`flex items-center space-x-2 px-4 py-3 font-medium transition-colors whitespace-nowrap ${
+                          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap rounded-t-lg ${
                             activeSubTab === 'stats'
-                              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                              ? 'text-blue-700 dark:text-blue-300 bg-blue-500/10'
                               : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                           }`}
                         >
@@ -447,7 +454,7 @@ const DockerManagement = () => {
                   </div>
                 </div>
               ) : (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center border border-gray-200 dark:border-gray-700">
+                <div className="glass-card py-16 text-center">
                   <Eye className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
                   <p className="text-gray-500 dark:text-gray-400">Select a container to view details</p>
                 </div>
@@ -457,7 +464,7 @@ const DockerManagement = () => {
         )}
 
         {activeTab === 'images' && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+          <div className="glass-card">
             <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
               Docker Images ({images.length})
             </h2>
@@ -474,8 +481,8 @@ const DockerManagement = () => {
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">No images found</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
+                <table className="min-w-full divide-y divide-gray-200/80 dark:divide-gray-800/80">
+                  <thead className="bg-black/[0.03] dark:bg-white/[0.04]">
                     <tr>
                       <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         Repository
@@ -494,9 +501,9 @@ const DockerManagement = () => {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-gray-200/80 dark:divide-gray-800/80">
                     {images.map((image, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <tr key={idx} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.04] transition-colors">
                         <td className="px-4 sm:px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
                           {image.repository}
                         </td>

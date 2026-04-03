@@ -78,11 +78,11 @@ const DiskDetails = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="page-shell">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Disk Details</h1>
-        <div className="flex items-center space-x-2 text-sm text-gray-600">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Disk Details</h1>
+        <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
           <HardDrive className="h-4 w-4" />
           <span>Storage partitions and I/O statistics</span>
         </div>
@@ -90,77 +90,80 @@ const DiskDetails = () => {
 
       {/* I/O Statistics */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <Activity className="h-6 w-6 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Read Operations</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Read Operations</h3>
           </div>
           <div className="text-2xl font-bold text-blue-600 mb-2">
             {diskInfo?.io_counters?.read_count?.toLocaleString() || 0}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Total read operations
           </div>
         </div>
 
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <TrendingUp className="h-6 w-6 text-green-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Write Operations</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Write Operations</h3>
           </div>
           <div className="text-2xl font-bold text-green-600 mb-2">
             {diskInfo?.io_counters?.write_count?.toLocaleString() || 0}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Total write operations
           </div>
         </div>
 
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <Database className="h-6 w-6 text-purple-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Bytes Read</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Bytes Read</h3>
           </div>
           <div className="text-2xl font-bold text-purple-600 mb-2">
             {formatBytes(diskInfo?.io_counters?.read_bytes || 0)}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Total data read
           </div>
         </div>
 
-        <div className="card">
+        <div className="glass-card">
           <div className="flex items-center space-x-3 mb-4">
             <HardDrive className="h-6 w-6 text-orange-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Bytes Written</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Bytes Written</h3>
           </div>
           <div className="text-2xl font-bold text-orange-600 mb-2">
             {formatBytes(diskInfo?.io_counters?.write_bytes || 0)}
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Total data written
           </div>
         </div>
       </div>
 
       {/* Disk Partitions */}
-      <div className="card mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Disk Partitions</h3>
+      <div className="glass-card mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Disk Partitions</h3>
         <div className="space-y-4">
           {Object.entries(diskInfo?.partitions || {}).map(([device, partition]) => (
-            <div key={device} className="bg-gray-50 rounded-lg p-4">
+            <div
+              key={device}
+              className="rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50 border border-gray-200/80 dark:border-gray-800/80"
+            >
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h4 className="font-semibold text-gray-900">{device}</h4>
-                  <p className="text-sm text-gray-600">
-                    Mount: {partition.mountpoint} | Type: {partition.fstype}
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">{device}</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Mount: {partition.mountpoint} | Type: {partition.fstype || '—'}
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold text-gray-900">
+                  <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
                     {partition.percent?.toFixed(1) || 0}%
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
                     {formatBytes(partition.used || 0)} / {formatBytes(partition.total || 0)}
                   </div>
                 </div>
@@ -177,8 +180,8 @@ const DiskDetails = () => {
       </div>
 
       {/* I/O History Chart */}
-      <div className="card">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Disk I/O History</h3>
+      <div className="glass-card">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Disk I/O History</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={history}>

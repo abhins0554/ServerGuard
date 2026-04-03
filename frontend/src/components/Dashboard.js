@@ -73,11 +73,11 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-10 fade-in">
+    <div className="page-shell max-w-7xl mx-auto fade-in">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-gray-900 dark:text-white mb-2">
             System Overseer
           </h1>
           <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">

@@ -14,7 +14,9 @@ import {
   AlertCircle,
   Plus,
   FolderPlus,
-  Loader
+  Loader,
+  Search,
+  HardDrive
 } from 'lucide-react';
 import { fileAPI, cacheUtils } from '../services/api';
 import BinaryFileViewer from './BinaryFileViewer';
@@ -49,6 +51,10 @@ const FileManager = () => {
 
   // Update breadcrumbs function extracted for reuse
   const updateBreadcrumbs = useCallback((path) => {
+    if (path == null || typeof path !== 'string') {
+      setBreadcrumbs([{ name: 'System Drives', path: '.' }]);
+      return;
+    }
     if (path === 'System Drives') {
       setBreadcrumbs([{ name: 'System Drives', path: 'System Drives' }]);
       return;
@@ -78,10 +84,11 @@ const FileManager = () => {
       setSearchTerm(''); // Clear search when changing directories
       
       const data = await fileAPI.listDirectory(path);
-      
+
       setDirectoryContents(data.items);
-      setCurrentPath(data.path);
-      updateBreadcrumbs(data.path);
+      const resolvedPath = typeof data.path === 'string' ? data.path : path;
+      setCurrentPath(resolvedPath);
+      updateBreadcrumbs(resolvedPath);
     } catch (err) {
       setError(`Failed to load directory: ${err.message}`);
       console.error('Error loading directory:', err);
@@ -349,82 +356,72 @@ const FileManager = () => {
   };
 
   // Filter directory contents based on search term
-  const filteredDirectoryContents = directoryContents.filter(item => {
+  const filteredDirectoryContents = (Array.isArray(directoryContents) ? directoryContents : []).filter(item => {
     if (!searchTerm.trim()) return true;
     return item.name.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
+  const divider = 'border-gray-200/80 dark:border-gray-800/80';
+  const toolBtn =
+    'p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-black/[0.06] dark:hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed transition-colors';
+
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">File Manager</h1>
-        <div className="flex items-center space-x-2 text-sm text-gray-600">
-          <Folder className="h-4 w-4" />
-          <span>Browse and manage files on the system</span>
+    <div className="page-shell">
+      {/* Header — Finder-style title */}
+      <div className="mb-6">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100 mb-1">
+          Files
+        </h1>
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <Folder className="h-4 w-4 shrink-0 opacity-80" />
+          <span>Browse folders and files on the connected system</span>
         </div>
       </div>
 
-      {/* File Manager Interface */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Directory Browser */}
-        <div className="lg:col-span-1 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-          {/* Navigation Controls */}
-          <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-            <div className="flex space-x-2">
-              <button 
-                onClick={goUp}
-                disabled={breadcrumbs.length <= 1}
-                className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Go up one level"
-              >
-                <ChevronLeft className="h-5 w-5 text-gray-600" />
+      {/* Unified window: split pane like Finder */}
+      <div
+        className={`rounded-2xl overflow-hidden border ${divider} shadow-lg bg-white/70 dark:bg-gray-950/50 backdrop-blur-xl flex flex-col lg:flex-row lg:min-h-[min(68vh,620px)]`}
+      >
+        {/* Sidebar / list column */}
+        <div
+          className={`w-full lg:w-[380px] xl:w-[400px] shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r ${divider} bg-gray-100/90 dark:bg-gray-900/55`}
+        >
+          {/* Toolbar */}
+          <div className={`px-3 py-2.5 flex items-center justify-between border-b ${divider} bg-white/60 dark:bg-gray-900/40`}>
+            <div className="flex items-center gap-0.5">
+              <button type="button" onClick={goUp} disabled={breadcrumbs.length <= 1} className={toolBtn} title="Enclosing folder">
+                <ChevronLeft className="h-5 w-5" />
               </button>
-              
-              <button 
-                onClick={() => navigateTo('.')}
-                className="p-1 rounded hover:bg-gray-200"
-                title="Go to home directory"
-              >
-                <Home className="h-5 w-5 text-gray-600" />
+              <button type="button" onClick={() => navigateTo('.')} className={toolBtn} title="Home">
+                <Home className="h-5 w-5" />
               </button>
-              
-              <button 
-                onClick={() => loadDirectory(currentPath)}
-                className="p-1 rounded hover:bg-gray-200"
-                title="Refresh"
-              >
-                <RefreshCw className="h-5 w-5 text-gray-600" />
+              <button type="button" onClick={() => loadDirectory(currentPath)} className={toolBtn} title="Refresh">
+                <RefreshCw className="h-5 w-5" />
               </button>
             </div>
-            
-            <div className="flex space-x-2">
-              <button 
-                onClick={() => setIsCreatingFile(true)}
-                className="p-1 rounded hover:bg-gray-200"
-                title="New File"
-              >
-                <Plus className="h-5 w-5 text-gray-600" />
+            <div className="flex items-center gap-0.5">
+              <button type="button" onClick={() => setIsCreatingFile(true)} className={toolBtn} title="New document">
+                <Plus className="h-5 w-5" />
               </button>
-              
-              <button 
-                onClick={() => setIsCreatingFolder(true)}
-                className="p-1 rounded hover:bg-gray-200"
-                title="New Folder"
-              >
-                <FolderPlus className="h-5 w-5 text-gray-600" />
+              <button type="button" onClick={() => setIsCreatingFolder(true)} className={toolBtn} title="New folder">
+                <FolderPlus className="h-5 w-5" />
               </button>
             </div>
           </div>
-          
-          {/* Breadcrumbs */}
-          <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex items-center overflow-x-auto whitespace-nowrap">
+
+          {/* Path bar */}
+          <div className={`px-3 py-2 border-b ${divider} flex items-center gap-1 overflow-x-auto bg-white/40 dark:bg-gray-950/30`}>
             {breadcrumbs.map((crumb, index) => (
               <React.Fragment key={index}>
-                {index > 0 && <ChevronRight className="h-4 w-4 text-gray-400 mx-1" />}
+                {index > 0 && <ChevronRight className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 shrink-0" />}
                 <button
+                  type="button"
                   onClick={() => navigateTo(crumb.path)}
-                  className={`text-sm ${index === breadcrumbs.length - 1 ? 'font-medium text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}
+                  className={`shrink-0 text-xs px-2 py-1 rounded-md transition-colors ${
+                    index === breadcrumbs.length - 1
+                      ? 'font-medium text-gray-900 dark:text-gray-100 bg-gray-200/70 dark:bg-gray-800/80'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-800/50'
+                  }`}
                 >
                   {crumb.name}
                 </button>
@@ -434,70 +431,70 @@ const FileManager = () => {
           
           {/* Create New File/Folder Forms */}
           {isCreatingFile && (
-            <div className="p-4 border-b border-gray-200 bg-blue-50">
-              <div className="flex items-center">
+            <div className={`p-3 border-b ${divider} bg-blue-50/90 dark:bg-blue-950/35`}>
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={newFileName}
                   onChange={(e) => setNewFileName(e.target.value)}
-                  placeholder="Enter file name"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="File name"
+                  className="input-field flex-1 rounded-xl py-2 text-sm"
                   autoFocus
                 />
                 <button
+                  type="button"
                   onClick={createNewFile}
                   disabled={!newFileName.trim() || saveLoading}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-500 disabled:opacity-50 shrink-0"
                 >
                   {saveLoading ? <Loader className="h-4 w-4 animate-spin" /> : 'Create'}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setIsCreatingFile(false)}
-                  className="ml-2 p-2 text-gray-600 hover:text-gray-900"
+                  className={`${toolBtn} shrink-0`}
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              {saveError && (
-                <div className="mt-2 text-sm text-red-600">{saveError}</div>
-              )}
+              {saveError && <div className="mt-2 text-sm text-red-600 dark:text-red-400">{saveError}</div>}
             </div>
           )}
-          
+
           {isCreatingFolder && (
-            <div className="p-4 border-b border-gray-200 bg-blue-50">
-              <div className="flex items-center">
+            <div className={`p-3 border-b ${divider} bg-blue-50/90 dark:bg-blue-950/35`}>
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
-                  placeholder="Enter folder name"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Folder name"
+                  className="input-field flex-1 rounded-xl py-2 text-sm"
                   autoFocus
                 />
                 <button
+                  type="button"
                   onClick={createNewFolder}
                   disabled={!newFolderName.trim() || saveLoading}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-500 disabled:opacity-50 shrink-0"
                 >
                   {saveLoading ? <Loader className="h-4 w-4 animate-spin" /> : 'Create'}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setIsCreatingFolder(false)}
-                  className="ml-2 p-2 text-gray-600 hover:text-gray-900"
+                  className={`${toolBtn} shrink-0`}
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              {saveError && (
-                <div className="mt-2 text-sm text-red-600">{saveError}</div>
-              )}
+              {saveError && <div className="mt-2 text-sm text-red-600 dark:text-red-400">{saveError}</div>}
             </div>
           )}
-          
-          {/* File Upload */}
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center">
+
+          {/* Upload */}
+          <div className={`p-3 border-b ${divider}`}>
+            <div className="flex items-stretch gap-0 rounded-xl overflow-hidden border border-gray-200/90 dark:border-gray-700/90">
               <input
                 type="file"
                 id="file-upload"
@@ -506,145 +503,139 @@ const FileManager = () => {
               />
               <label
                 htmlFor="file-upload"
-                className="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded-l-lg cursor-pointer hover:bg-gray-200 truncate"
+                className="flex-1 px-3 py-2.5 text-sm cursor-pointer truncate bg-white/80 dark:bg-gray-950/40 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50"
               >
-                {uploadFile ? uploadFile.name : 'Choose a file to upload...'}
+                {uploadFile ? uploadFile.name : 'Choose file…'}
               </label>
               <button
+                type="button"
                 onClick={handleUpload}
                 disabled={!uploadFile || uploadLoading}
-                className="px-3 py-2 bg-green-600 text-white rounded-r-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                className="px-3 py-2 bg-emerald-600 dark:bg-emerald-600 text-white text-sm hover:bg-emerald-500 disabled:opacity-50 flex items-center gap-1 shrink-0"
               >
                 {uploadLoading ? (
                   <>
-                    <Loader className="h-4 w-4 mr-1 animate-spin" />
+                    <Loader className="h-4 w-4 animate-spin" />
                     {uploadProgress}%
                   </>
                 ) : (
                   <>
-                    <Upload className="h-4 w-4 mr-1" />
+                    <Upload className="h-4 w-4" />
                     Upload
                   </>
                 )}
               </button>
             </div>
-            {uploadError && (
-              <div className="mt-2 text-sm text-red-600">{uploadError}</div>
-            )}
+            {uploadError && <div className="mt-2 text-sm text-red-600 dark:text-red-400">{uploadError}</div>}
             {uploadProgress > 0 && uploadProgress < 100 && (
-              <div className="mt-2">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
+              <div className="mt-2 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                <div
+                  className="h-full bg-emerald-500 transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
               </div>
             )}
           </div>
-          
-                     {/* Search Bar */}
-           <div className="p-4 border-b border-gray-200">
-             <div className="relative">
-               <input
-                 type="text"
-                 value={searchTerm}
-                 onChange={(e) => setSearchTerm(e.target.value)}
-                 placeholder="Search files and folders..."
-                 className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-               />
-               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                 <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                 </svg>
-               </div>
-               {searchTerm && (
-                 <button
-                   onClick={() => setSearchTerm('')}
-                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                 >
-                   <X className="h-4 w-4" />
-                 </button>
-               )}
-             </div>
-             {searchTerm && (
-               <div className="mt-2 text-xs text-gray-500">
-                 Showing {filteredDirectoryContents.length} of {directoryContents.length} items
-               </div>
-             )}
-           </div>
-           
-           {/* Directory Contents */}
-           <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 400px)' }}>
-             {loading && directoryContents.length === 0 ? (
-              <div className="p-4 text-center text-gray-500">
-                <Loader className="h-6 w-6 animate-spin mx-auto mb-2" />
-                Loading...
+
+          {/* Search */}
+          <div className={`p-3 border-b ${divider}`}>
+            <div className="relative">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search"
+                className="input-field w-full rounded-xl py-2 pl-9 pr-9 text-sm"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            {searchTerm && (
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {filteredDirectoryContents.length} of {directoryContents.length} items
+              </div>
+            )}
+          </div>
+
+          {/* File list */}
+          <div className="flex-1 overflow-y-auto min-h-[200px]" style={{ maxHeight: 'calc(100vh - 380px)' }}>
+            {loading && directoryContents.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-sm">
+                <Loader className="h-6 w-6 animate-spin mx-auto mb-2 opacity-70" />
+                Loading…
               </div>
             ) : error ? (
-              <div className="p-4 text-center text-red-500">
-                {error}
+              <div className="p-6 text-center text-sm text-red-600 dark:text-red-400">{error}</div>
+            ) : filteredDirectoryContents.length === 0 ? (
+              <div className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                {searchTerm ? 'No matches' : 'Folder is empty'}
               </div>
-                         ) : filteredDirectoryContents.length === 0 ? (
-               <div className="p-4 text-center text-gray-500">
-                 {searchTerm ? 'No files match your search' : 'This directory is empty'}
-               </div>
-             ) : (
-               <ul className="divide-y divide-gray-200">
-                 {filteredDirectoryContents.map((item) => (
-                  <li key={item.path} className="group">
-                    <div className="flex items-center">
+            ) : (
+              <ul className="py-1">
+                {filteredDirectoryContents.map((item) => (
+                  <li key={item.path} className="group px-2">
+                    <div className="flex items-center rounded-lg">
                       <button
+                        type="button"
                         onClick={() => handleFileSelect(item)}
-                        className={`flex-1 px-4 py-3 flex items-center hover:bg-gray-50 ${selectedFile?.path === item.path ? 'bg-blue-50' : ''}`}
+                        className={`flex-1 min-w-0 pl-2 pr-1 py-2 flex items-center rounded-lg text-left transition-colors ${
+                          selectedFile?.path === item.path
+                            ? 'bg-blue-500/12 dark:bg-blue-500/20'
+                            : 'hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
+                        }`}
                       >
                         {item.is_drive ? (
-                          <div className="w-5 h-5 bg-green-500 rounded mr-3 flex-shrink-0 flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">D</span>
+                          <div className="w-8 h-8 rounded-md bg-gradient-to-b from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 mr-3 shrink-0 flex items-center justify-center shadow-sm">
+                            <HardDrive className="h-4 w-4 text-slate-600 dark:text-slate-200" />
                           </div>
                         ) : item.is_directory ? (
-                          <Folder className="h-5 w-5 text-yellow-500 mr-3 flex-shrink-0" />
+                          <Folder className="h-6 w-6 text-sky-500 dark:text-sky-400 mr-3 shrink-0" strokeWidth={1.75} />
                         ) : (
-                          <FileIcon className="h-5 w-5 text-blue-500 mr-3 flex-shrink-0" />
+                          <FileIcon className="h-6 w-6 text-gray-400 dark:text-gray-500 mr-3 shrink-0" strokeWidth={1.75} />
                         )}
-                        <div className="flex-1 text-left truncate">
-                          <div className="font-medium text-gray-900 truncate flex items-center">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate flex items-center gap-1">
                             {item.name}
                             {item.is_hidden && (
-                              <span className="ml-1 text-xs text-gray-400">(hidden)</span>
+                              <span className="text-xs font-normal text-gray-400 dark:text-gray-500">hidden</span>
                             )}
                           </div>
-                          <div className="text-xs text-gray-500 flex justify-between">
+                          <div className="text-[11px] text-gray-500 dark:text-gray-400 flex justify-between gap-2 mt-0.5">
                             <span>
-                              {item.is_drive ? 'Drive' : 
-                               item.is_directory ? 'Directory' : 
-                               formatFileSize(item.size)}
+                              {item.is_drive ? 'Volume' : item.is_directory ? 'Folder' : formatFileSize(item.size)}
                             </span>
-                            <span>{formatDate(item.modified)}</span>
+                            <span className="shrink-0 tabular-nums">{formatDate(item.modified)}</span>
                           </div>
                           {item.permissions && (
-                            <div className="text-xs text-gray-400">
-                              Permissions: {item.permissions} | 
-                              {item.readable ? ' R' : ''}
-                              {item.writable ? ' W' : ''}
-                              {item.executable ? ' X' : ''}
+                            <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">
+                              {item.permissions}
+                              {item.readable ? ' · read' : ''}
+                              {item.writable ? ' · write' : ''}
+                              {item.executable ? ' · exec' : ''}
                             </div>
                           )}
                         </div>
                         {!item.is_directory && !item.is_drive && (
-                          <ChevronRight className="h-5 w-5 text-gray-400 ml-2 flex-shrink-0" />
+                          <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600 ml-1 shrink-0" />
                         )}
                       </button>
-                      
-                      {/* Delete button - only show on hover and for non-system items */}
                       {!item.is_drive && (
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             confirmDelete(item);
                           }}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 transition-opacity"
-                          title="Delete"
+                          className="opacity-0 group-hover:opacity-100 p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-opacity shrink-0"
+                          title="Move to Trash"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -657,191 +648,189 @@ const FileManager = () => {
           </div>
         </div>
 
-        {/* File Viewer/Editor */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+        {/* Preview / editor column */}
+        <div className="flex-1 flex flex-col min-w-0 bg-white/60 dark:bg-gray-950/30">
           {selectedFile ? (
             <>
-              {/* File Header */}
-              <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-                <div className="flex items-center">
+              <div className={`px-4 py-3 border-b ${divider} flex items-center justify-between gap-3 bg-white/70 dark:bg-gray-900/40`}>
+                <div className="flex items-center min-w-0 gap-2">
                   {selectedFile.is_directory ? (
-                    <Folder className="h-5 w-5 text-yellow-500 mr-2" />
+                    <Folder className="h-5 w-5 text-sky-500 dark:text-sky-400 shrink-0" strokeWidth={1.75} />
                   ) : (
-                    <FileIcon className="h-5 w-5 text-blue-500 mr-2" />
+                    <FileIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 shrink-0" strokeWidth={1.75} />
                   )}
-                  <span className="font-medium text-gray-900">{selectedFile.name}</span>
+                  <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-gray-100 truncate">
+                    {selectedFile.name}
+                  </span>
                 </div>
-                
-                <div className="flex space-x-2">
+                <div className="flex items-center gap-1 shrink-0">
                   {!selectedFile.is_directory && !isBinary && (
                     <button
+                      type="button"
                       onClick={toggleEdit}
-                      className={`p-1 rounded ${isEditing ? 'bg-green-100 text-green-700' : 'hover:bg-gray-200 text-gray-600'}`}
-                      title={isEditing ? 'Save' : 'Edit'}
+                      className={`p-2 rounded-lg transition-colors ${
+                        isEditing
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                          : `${toolBtn}`
+                      }`}
+                      title={isEditing ? 'Done' : 'Edit'}
                     >
                       {isEditing ? <Save className="h-5 w-5" /> : <Edit className="h-5 w-5" />}
                     </button>
                   )}
-                  
                   {!selectedFile.is_directory && (
-                    <button
-                      onClick={downloadFile}
-                      className="p-1 rounded hover:bg-gray-200 text-gray-600"
-                      title="Download"
-                    >
+                    <button type="button" onClick={downloadFile} className={toolBtn} title="Download">
                       <Download className="h-5 w-5" />
                     </button>
                   )}
                 </div>
               </div>
-              
-              {/* File Content */}
-              <div className="p-4">
+
+              <div className="flex-1 flex flex-col min-h-0 p-4">
                 {loading ? (
-                  <div className="text-center text-gray-500 py-8">
-                    <Loader className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    Loading file content...
+                  <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400 text-sm">
+                    <Loader className="h-6 w-6 animate-spin mb-2 opacity-70" />
+                    Loading…
                   </div>
                 ) : selectedFile.is_directory ? (
-                  <div className="text-center text-gray-500 py-8">
-                    This is a directory. Select files within it from the left panel.
+                  <div className="flex flex-col items-center justify-center py-16 text-center text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                    Open a folder from the sidebar, then choose a file to preview here.
                   </div>
                 ) : isBinary ? (
-                  <div className="text-center text-gray-500 py-8">
-                    This appears to be a binary file and cannot be displayed in the browser.
-                    Use the download button to save it to your computer.
+                  <div className="flex flex-col items-center justify-center py-16 text-center text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                    This file type can’t be previewed here. Use Download to save a copy locally.
                   </div>
                 ) : isEditing ? (
-                  <div className="relative">
+                  <div className="flex flex-col flex-1 min-h-0">
                     <textarea
                       value={fileContent}
                       onChange={(e) => setFileContent(e.target.value)}
-                      className="w-full h-96 p-3 border border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="input-field flex-1 min-h-[240px] font-mono text-sm rounded-xl resize-y"
                     />
-                    <div className="mt-4 flex justify-end space-x-3">
+                    <div className="mt-3 flex justify-end gap-2">
                       <button
+                        type="button"
                         onClick={() => setIsEditing(false)}
-                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                        className="btn-secondary py-2 px-4 text-sm"
                       >
                         Cancel
                       </button>
                       <button
+                        type="button"
                         onClick={saveFile}
                         disabled={saveLoading}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                        className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm hover:bg-blue-500 disabled:opacity-50 flex items-center gap-2"
                       >
                         {saveLoading ? (
                           <>
-                            <Loader className="h-4 w-4 mr-2 animate-spin" />
-                            Saving...
+                            <Loader className="h-4 w-4 animate-spin" />
+                            Saving…
                           </>
                         ) : (
-                          'Save Changes'
+                          'Save'
                         )}
                       </button>
                     </div>
-                    {saveError && (
-                      <div className="mt-2 text-sm text-red-600">{saveError}</div>
-                    )}
+                    {saveError && <div className="mt-2 text-sm text-red-600 dark:text-red-400">{saveError}</div>}
                   </div>
                 ) : (
-                  <pre className="w-full h-96 p-3 border border-gray-300 rounded-lg font-mono text-sm overflow-auto bg-gray-50">
+                  <pre className="flex-1 min-h-[240px] max-h-[min(60vh,520px)] p-4 rounded-xl border border-gray-200/90 dark:border-gray-800/90 font-mono text-xs sm:text-sm overflow-auto bg-gray-50/80 dark:bg-gray-950/50 text-gray-800 dark:text-gray-200">
                     {fileContent}
                   </pre>
                 )}
               </div>
-              
-              {/* File Info */}
+
               {!selectedFile.is_directory && (
-                <div className="p-4 border-t border-gray-200 bg-gray-50">
-                  <h3 className="text-sm font-medium text-gray-900 mb-2">File Information</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className={`px-4 py-3 border-t ${divider} bg-gray-50/80 dark:bg-gray-900/50`}>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3">
+                    Info
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                     <div>
-                      <span className="text-gray-500">Size:</span>{' '}
-                      <span className="text-gray-900">{formatFileSize(selectedFile.size)}</span>
+                      <span className="text-gray-500 dark:text-gray-400">Size</span>
+                      <div className="text-gray-900 dark:text-gray-100 tabular-nums">{formatFileSize(selectedFile.size)}</div>
                     </div>
                     <div>
-                      <span className="text-gray-500">Modified:</span>{' '}
-                      <span className="text-gray-900">{formatDate(selectedFile.modified)}</span>
+                      <span className="text-gray-500 dark:text-gray-400">Modified</span>
+                      <div className="text-gray-900 dark:text-gray-100">{formatDate(selectedFile.modified)}</div>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <span className="text-gray-500 dark:text-gray-400">Where</span>
+                      <div className="text-gray-900 dark:text-gray-100 break-all text-xs mt-0.5">{selectedFile.path}</div>
                     </div>
                     <div>
-                      <span className="text-gray-500">Path:</span>{' '}
-                      <span className="text-gray-900 break-all">{selectedFile.path}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Type:</span>{' '}
-                      <span className="text-gray-900">{isBinary ? 'Binary File' : 'Text File'}</span>
+                      <span className="text-gray-500 dark:text-gray-400">Kind</span>
+                      <div className="text-gray-900 dark:text-gray-100">{isBinary ? 'Binary' : 'Text'}</div>
                     </div>
                   </div>
                 </div>
               )}
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-              <Folder className="h-16 w-16 text-gray-300 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No File Selected</h3>
-              <p className="text-gray-500 max-w-md">
-                Select a file from the directory browser on the left to view its contents.
-                You can navigate through directories, upload new files, or create new files and folders.
+            <div className="flex-1 flex flex-col items-center justify-center p-10 text-center min-h-[280px]">
+              <div className="w-20 h-20 rounded-2xl bg-gray-100 dark:bg-gray-800/80 flex items-center justify-center mb-5">
+                <Folder className="h-10 w-10 text-gray-300 dark:text-gray-600" strokeWidth={1.25} />
+              </div>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">No selection</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs leading-relaxed">
+                Select an item in the sidebar to preview or edit. Create folders, upload, or search from the toolbar.
               </p>
             </div>
           )}
         </div>
       </div>
-      
-      {/* Safety Notice */}
-      <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <div className="flex items-start">
-          <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5 mr-2" />
+
+      <div className="mt-6 p-4 rounded-xl border border-yellow-200 dark:border-yellow-800/60 bg-yellow-50 dark:bg-yellow-950/25">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
           <div>
-            <h4 className="font-medium text-yellow-800">Safety Notice</h4>
-            <p className="text-sm text-yellow-700 mt-1">
-              Be careful when modifying system files. Incorrect changes could affect system stability.
-              It's recommended to only edit files you understand and have permission to modify.
-              File operations are optimized with caching for better performance.
+            <h4 className="font-medium text-yellow-800 dark:text-yellow-300">Safety</h4>
+            <p className="text-sm text-yellow-800/95 dark:text-yellow-400/90 mt-1 leading-relaxed">
+              Changes affect the real filesystem on this machine. Edit only what you understand. Listings are cached briefly for speed.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center mb-4">
-              <AlertCircle className="h-6 w-6 text-red-500 mr-3" />
-              <h3 className="text-lg font-medium text-gray-900">Confirm Delete</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertCircle className="h-6 w-6 text-red-500 shrink-0" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Delete permanently?</h3>
             </div>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete <strong>{itemToDelete?.name}</strong>?
-              This action cannot be undone.
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              <span className="font-medium text-gray-900 dark:text-gray-100">{itemToDelete?.name}</span> will be removed.
+              This can’t be undone.
             </p>
             {deleteError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600">{deleteError}</p>
+              <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50">
+                <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
               </div>
             )}
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end gap-2">
               <button
+                type="button"
                 onClick={() => {
                   setShowDeleteConfirm(false);
                   setItemToDelete(null);
                   setDeleteError('');
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="btn-secondary py-2 px-4 text-sm"
                 disabled={deleteLoading}
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleDelete}
                 disabled={deleteLoading}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm hover:bg-red-500 disabled:opacity-50 flex items-center gap-2"
               >
                 {deleteLoading ? (
                   <>
-                    <Loader className="h-4 w-4 mr-2 animate-spin" />
-                    Deleting...
+                    <Loader className="h-4 w-4 animate-spin" />
+                    Deleting…
                   </>
                 ) : (
                   'Delete'
